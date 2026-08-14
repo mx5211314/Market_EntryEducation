@@ -9,6 +9,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
@@ -145,5 +146,37 @@ public class UserService {
 
     public void deleteUser(Long userId) {
         userMapper.deleteById(userId);
+    }
+//    wechat
+    public User findOrCreateByOpenid(String openid) {
+        User user = userMapper.findByOpenid(openid);
+        if (user == null) {
+            user = new User();
+            user.setUsername("wx_" + openid.substring(0, Math.min(8, openid.length()))); // 避免重复，可加随机数
+            user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+            user.setNickname("微信用户");
+            user.setRole("USER");
+            user.setStatus(1);
+            user.setOpenid(openid);
+            user.setCreatedAt(LocalDateTime.now());
+            userMapper.insert(user);
+        }
+        return user;
+    }
+    //github 接入
+    public User findOrCreateByGithubId(Long githubId, String username) {
+        User user = userMapper.findByGithubId(githubId);
+        if (user == null) {
+            user = new User();
+            user.setUsername("gh_" + username);
+            user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+            user.setNickname(username);
+            user.setRole("USER");
+            user.setStatus(1);
+            user.setGithubId(githubId);
+            user.setCreatedAt(LocalDateTime.now());
+            userMapper.insert(user);
+        }
+        return user;
     }
 }

@@ -33,4 +33,4 @@ build/
 .vscode/
 
 ### Local config ###
-src/main/resources/application_local.yml
+src/main/resources/application-example.yml

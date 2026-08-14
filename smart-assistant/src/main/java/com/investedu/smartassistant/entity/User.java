@@ -20,5 +20,7 @@ public class User {
     private String signature;
     private Integer status;
     private String phone;
+    private String openid;
+    private Long githubId;
     private LocalDateTime createdAt;
 }

@@ -29,6 +29,8 @@ public class SecurityConfig {
         http.csrf().disable()
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/wechat/auth-url", "/api/wechat/callback").permitAll()
+                        .requestMatchers("/api/oauth/github/login-url", "/api/oauth/github/callback").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

@@ -87,7 +87,7 @@ public class AiConfig {
                 .host(milvusHost)
                 .port(milvusPort)
                 .collectionName(milvusCollection)
-                .dimension(1536)   // 根据你的 Embedding 模型调整（v1:1024, v2/v3:1536）
+                .dimension(1024)   //  // 根据你的 Embedding 模型调整（v1:1024, v2:1536 v3:改为 1024）
                 .build();
     }
 
@@ -96,7 +96,8 @@ public class AiConfig {
         return ElasticsearchEmbeddingStore.builder()
                 .serverUrl("http://" + esHost + ":" + esPort)
                 .indexName(esIndex)
-                .dimension(1536)   // 与 Milvus 维度一致
+                .dimension(1024)   // 改为 1024
                 .build();
     }
+
 }

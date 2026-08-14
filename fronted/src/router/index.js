@@ -1,55 +1,58 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import ChatView from '../views/ChatView.vue'
-import RiskTestView from '../views/RiskTestView.vue'
-import SimTradeView from '../views/SimTradeView.vue'
-import ReportView from '../views/ReportView.vue'
 import LoginView from '../views/LoginView.vue'
-import ProfileView from '../views/ProfileView.vue'
-import AdminUserView from '../views/AdminUserView.vue'
+
+const BackendLayout = () => import('../components/BackendLayout.vue')
+const ChatView = () => import('../views/ChatView.vue')
+const RiskTestView = () => import('../views/RiskTestView.vue')
+const SimTradeView = () => import('../views/SimTradeView.vue')
+const ReportView = () => import('../views/ReportView.vue')
+const ProfileView = () => import('../views/ProfileView.vue')
+const AdminUserView = () => import('../views/AdminUserView.vue')
 
 const routes = [
-  { path: '/login', component: LoginView },
+  {
+    path: '/login',
+    component: LoginView,
+    meta: { guest: true }, // 允许未登录访问，已登录也不强制跳转
+  },
   {
     path: '/',
-    component: () => import('@/components/BackendLayout.vue'),
+    component: BackendLayout,
+    redirect: '/chat',
     children: [
       {
         path: 'chat',
         component: ChatView,
-        meta: {
-          title: '智能问答',
-          icon: 'ChatDotRound',
-          roles: ['USER', 'ADMIN'],
-        },
+        meta: { title: '智能问答', roles: ['USER', 'ADMIN'] },
       },
       {
         path: 'risk',
         component: RiskTestView,
-        meta: { title: '风险测评', icon: 'PieChart', roles: ['USER', 'ADMIN'] },
+        meta: { title: '风险测评', roles: ['USER', 'ADMIN'] },
       },
       {
         path: 'sim',
         component: SimTradeView,
-        meta: { title: '模拟引导', icon: 'Monitor', roles: ['USER', 'ADMIN'] },
+        meta: { title: '模拟引导', roles: ['USER', 'ADMIN'] },
       },
       {
         path: 'report',
         component: ReportView,
-        meta: { title: '风险报告', icon: 'Document', roles: ['USER', 'ADMIN'] },
+        meta: { title: '风险报告', roles: ['USER', 'ADMIN'] },
       },
       {
         path: 'profile',
         component: ProfileView,
-        meta: { title: '个人中心', icon: 'User', roles: ['USER', 'ADMIN'] },
+        meta: { title: '个人中心', roles: ['USER', 'ADMIN'] },
       },
       {
         path: 'admin/users',
         component: AdminUserView,
-        meta: { title: '用户管理', icon: 'Setting', roles: ['ADMIN'] },
+        meta: { title: '用户管理', roles: ['ADMIN'] },
       },
-      { path: '', redirect: '/chat' },
     ],
   },
+  { path: '/:pathMatch(.*)*', redirect: '/chat' },
 ]
 
 const router = createRouter({
@@ -59,23 +62,25 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
-  const role = localStorage.getItem('role')
+  const role = localStorage.getItem('role') || 'USER'
 
-  if (to.path === '/login' && token) {
-    return next('/chat')
-  }
-  // 如果路由需要认证但未登录
-  if (to.meta.requiresAuth && !token) {
+  // 未登录，且访问的不是 guest 路由
+  if (!token && !to.meta.guest) {
     return next('/login')
   }
-  // 如果路由需要管理员权限
-  if (to.meta.requiresAdmin && role !== 'ADMIN') {
-    return next('/chat')
+
+  // 已登录，访问 /login 时不自动重定向，让 LoginView 处理参数
+  // （如果希望正常登录后手动跳转，这里可以放开，但为了回调，不自动跳）
+  if (token && to.path === '/login') {
+    // 这里不跳转，让 LoginView 的 onMounted 处理
+    return next()
   }
-  // 检查角色权限（roles 数组）
+
+  // 角色权限检查
   if (to.meta.roles && !to.meta.roles.includes(role)) {
     return next('/chat')
   }
+
   next()
 })
 

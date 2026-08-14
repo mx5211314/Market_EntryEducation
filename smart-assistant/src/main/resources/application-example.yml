@@ -1,0 +1,97 @@
+# ============================================================
+# 入市教育智慧助手 - 配置文件模板
+# 使用说明：
+# 1. 复制本文件为 application.yml
+# 2. 设置下方以 ${ENV_VAR} 形式出现的环境变量
+#    或者在 IDE 的 Run Configuration 中配置环境变量
+# 3. 不要在 application.yml 中硬编码真实密钥！
+# ============================================================
+
+server:
+  port: 8080
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3305/invest_edu?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:your_db_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: never   # 手动建表 不用自动执行
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  type-aliases-package: com.investedu.smartassistant.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+#mybatis:
+#  mapper-locations: classpath:mapper/*.xml
+#  type-aliases-package: com.investedu.smartassistant.entity
+#  configuration:
+#    map-underscore-to-camel-case: true   # 下划线转驼峰，重要
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # 开发时打印SQL
+
+# JWT 配置
+jwt:
+  secret: ${JWT_SECRET:your-jwt-secret-please-change}
+  expiration: ${JWT_EXPIRATION:86400000}   # 过期时间（毫秒），默认1天
+
+# LangChain4j 与阿里云百炼模型配置
+langchain4j:
+  open-ai:
+    chat-model:
+      api-key: ${DASHSCOPE_API_KEY:your-dashscope-api-key}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      model-name: qwen3.7-plus   # 或 qwen-turbo
+      timeout: 120s
+      max-tokens: 2048
+      temperature: 0.1
+      stream-url: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+  dashscope:
+    embedding-model:
+      api-key: ${DASHSCOPE_API_KEY:your-dashscope-api-key}
+      model-name: text-embedding-v1   # 输出 1024 维；如用 v2/v3 需调整维度
+
+# Milvus 向量数据库
+milvus:
+  host: localhost
+  port: 19530
+  collection-name: investment_edu_v1   # 注意维度匹配（当前使用 1024）
+
+# Elasticsearch 配置（混合检索预留）
+elasticsearch:
+  host: localhost
+  port: 9200
+  index-name: investment_edu_v1
+
+# GitHub OAuth2 登录配置    26/08/14 wechat/github接入
+github:
+  client-id: ${GITHUB_CLIENT_ID}
+  client-secret: ${GITHUB_CLIENT_SECRET}
+  redirect-uri: http://localhost:8080/api/oauth/github/callback
+
+# 微信开放平台登录配置（需企业资质，个人暂不可用）
+wechat:
+  appid: ${WECHAT_APPID}
+  secret: ${WECHAT_SECRET}
+  redirect-uri: http://localhost:8080/api/wechat/callback
+
+
+logging:
+  level:
+    dev.langchain4j: DEBUG
+
+
+
+
+
+
+
+
+
+
+
