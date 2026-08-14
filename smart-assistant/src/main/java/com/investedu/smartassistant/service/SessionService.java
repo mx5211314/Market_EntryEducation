@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -17,16 +18,19 @@ public class SessionService {
     private static final int MAX_HISTORY = 10;
 
     public List<Map<String, String>> getHistory(String sessionId) {
-        return sessions.getOrDefault(sessionId, new ArrayList<>());
+        List<Map<String, String>> history = sessions.get(sessionId);
+        return history == null ? List.of() : List.copyOf(history);
     }
 
     public void addMessage(String sessionId, String role, String content) {
-        sessions.computeIfAbsent(sessionId, k -> new ArrayList<>())
-                .add(Map.of("role", role, "content", content));
-        // 保持历史长度
-        List<Map<String, String>> history = sessions.get(sessionId);
-        if (history.size() > MAX_HISTORY * 2) { // 一问一答算两条
-            history.subList(0, history.size() - MAX_HISTORY * 2).clear();
+        List<Map<String, String>> history = sessions.computeIfAbsent(
+                sessionId, k -> Collections.synchronizedList(new ArrayList<>())
+        );
+        synchronized (history) {
+            history.add(Map.of("role", role, "content", content));
+            if (history.size() > MAX_HISTORY * 2) {
+                history.subList(0, history.size() - MAX_HISTORY * 2).clear();
+            }
         }
     }
 

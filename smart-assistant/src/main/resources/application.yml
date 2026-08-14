@@ -3,7 +3,7 @@ server:
 langchain4j:
   open-ai:
     chat-model:
-      api-key: ${DASHSCOPE_API_KEY}    # 从环境变量读取
+      api-key: ${DASHSCOPE_API_KEY:}
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       model-name: qwen3.7-plus
       timeout: 120s
@@ -12,7 +12,7 @@ langchain4j:
       stream-url: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
   dashscope:
     embedding-model:
-      api-key: ${DASHSCOPE_API_KEY}    # 使用同一个变量
+      api-key: ${DASHSCOPE_API_KEY:}
       model-name: text-embedding-v1
 milvus:
   host: localhost
@@ -26,7 +26,3 @@ elasticsearch:
 logging:
   level:
     dev.langchain4j: DEBUG
-#rerank:
-#  api-key: ms-67265379-ba54-40d0-b804-35fde21ea395    # ModelScope Token，通常以 ms_ 开头
-#  model: iic/nlp_gte_sentence-embedding_chinese-base  # 或 BAAI/bge-reranker-v2-m3，但需确认 pipeline 类型
-#  base-url: https://api.modelscope.cn/v1/rerank

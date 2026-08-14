@@ -1,23 +1,32 @@
 <template>
-  <div>
-    <h2>📈 入市全程引导</h2>
-    <p>输入您的投资目标，系统将结合您的风险等级与法规，生成模拟操作指引。</p>
-    <el-input
-      v-model="query"
-      placeholder="例如：我想融资买入贵州茅台"
-      class="query-input" />
-    <el-button
-      type="primary"
-      @click="startGuidance"
-      :loading="loading"
-      style="margin-top: 10px"
-      >开始引导</el-button
-    >
+  <section class="page-panel">
+    <div class="page-intro">
+      <div>
+        <h2>入市模拟引导</h2>
+        <p>输入投资目标后，系统会结合风险等级、交易规则和模拟步骤生成操作建议。</p>
+      </div>
+    </div>
 
-    <el-card v-if="report" class="report-card">
-      <div v-html="formatContent(report)"></div>
-    </el-card>
-  </div>
+    <div class="guide-layout">
+      <div class="input-card surface">
+        <el-input
+          v-model="query"
+          type="textarea"
+          :rows="5"
+          placeholder="例如：我想融资买入贵州茅台"
+          resize="none" />
+        <el-button type="primary" size="large" @click="startGuidance" :loading="loading">开始引导</el-button>
+      </div>
+
+      <div class="report-card surface">
+        <div v-if="!report" class="empty-report">
+          <strong>等待生成模拟指引</strong>
+          <span>建议会展示风险匹配、规则约束、模拟交易步骤和复盘要点。</span>
+        </div>
+        <div v-else class="report-content">{{ report }}</div>
+      </div>
+    </div>
+  </section>
 </template>
 
 <script setup>
@@ -43,29 +52,60 @@ const startGuidance = async () => {
   } catch (e) {
     ElMessage.error('请求失败，请检查后端服务')
     console.error(e)
+  } finally {
+    loading.value = false
   }
-  loading.value = false
-}
-
-const formatContent = (content) => {
-  if (!content) return ''
-  return content
-    .replace(/\n/g, '<br/>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
 }
 </script>
 
 <style scoped>
-.query-input {
-  margin-bottom: 15px;
+.guide-layout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
 }
+
+.input-card,
 .report-card {
-  margin-top: 20px;
-  white-space: pre-wrap;
-  border-radius: 8px;
-  background: #fff;
+  padding: 18px;
 }
-h2 {
-  color: #1e3c72;
+
+.input-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.report-card {
+  min-height: 360px;
+}
+
+.empty-report {
+  height: 100%;
+  min-height: 300px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: #738699;
+}
+
+.empty-report strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #132a3a;
+  font-size: 18px;
+}
+
+.report-content {
+  white-space: pre-wrap;
+  line-height: 1.8;
+  color: #263847;
+}
+
+@media (max-width: 900px) {
+  .guide-layout {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -1,8 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import ChatView from '../views/ChatView.vue'
-import RiskTestView from '../views/RiskTestView.vue'
-import SimTradeView from '../views/SimTradeView.vue'
-import ReportView from '../views/ReportView.vue'
+const ChatView = () => import('../views/ChatView.vue')
+const RiskTestView = () => import('../views/RiskTestView.vue')
+const SimTradeView = () => import('../views/SimTradeView.vue')
+const ReportView = () => import('../views/ReportView.vue')
 
 const routes = [
   { path: '/', redirect: '/chat' },
