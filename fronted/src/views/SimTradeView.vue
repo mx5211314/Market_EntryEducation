@@ -1,32 +1,25 @@
 <template>
-  <section class="page-panel">
-    <div class="page-intro">
-      <div>
-        <h2>入市模拟引导</h2>
-        <p>输入投资目标后，系统会结合风险等级、交易规则和模拟步骤生成操作建议。</p>
-      </div>
-    </div>
+  <div class="sim-page">
+    <div class="page-card">
+      <h2>📈 入市全程引导</h2>
+      <p class="desc">
+        输入投资目标，系统将结合风险等级与法规，生成模拟操作指引。
+      </p>
 
-    <div class="guide-layout">
-      <div class="input-card surface">
-        <el-input
-          v-model="query"
-          type="textarea"
-          :rows="5"
-          placeholder="例如：我想融资买入贵州茅台"
-          resize="none" />
-        <el-button type="primary" size="large" @click="startGuidance" :loading="loading">开始引导</el-button>
-      </div>
+      <el-input
+        v-model="query"
+        placeholder="例如：我想融资买入贵州茅台"
+        size="large"
+        class="query-input" />
+      <button class="guide-btn" @click="startGuidance" :disabled="loading">
+        {{ loading ? '生成中...' : '开始引导' }}
+      </button>
 
-      <div class="report-card surface">
-        <div v-if="!report" class="empty-report">
-          <strong>等待生成模拟指引</strong>
-          <span>建议会展示风险匹配、规则约束、模拟交易步骤和复盘要点。</span>
-        </div>
-        <div v-else class="report-content">{{ report }}</div>
-      </div>
+      <el-card v-if="report" class="report-card">
+        <div class="report-content">{{ report }}</div>
+      </el-card>
     </div>
-  </section>
+  </div>
 </template>
 
 <script setup>
@@ -52,60 +45,60 @@ const startGuidance = async () => {
   } catch (e) {
     ElMessage.error('请求失败，请检查后端服务')
     console.error(e)
-  } finally {
-    loading.value = false
   }
+  loading.value = false
 }
 </script>
 
 <style scoped>
-.guide-layout {
-  display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 18px;
-  align-items: stretch;
+.sim-page {
+  max-width: 700px;
+  margin: 0 auto;
 }
-
-.input-card,
+.page-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 24px;
+}
+h2 {
+  color: var(--text-dark);
+  margin-bottom: 6px;
+}
+.desc {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+.query-input {
+  margin-bottom: 14px;
+}
+.guide-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff9a8b, #a4508b);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.guide-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(164, 80, 139, 0.4);
+}
+.guide-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .report-card {
-  padding: 18px;
+  margin-top: 18px;
 }
-
-.input-card {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.report-card {
-  min-height: 360px;
-}
-
-.empty-report {
-  height: 100%;
-  min-height: 300px;
-  display: grid;
-  place-content: center;
-  text-align: center;
-  color: #738699;
-}
-
-.empty-report strong {
-  display: block;
-  margin-bottom: 8px;
-  color: #132a3a;
-  font-size: 18px;
-}
-
 .report-content {
   white-space: pre-wrap;
   line-height: 1.8;
-  color: #263847;
-}
-
-@media (max-width: 900px) {
-  .guide-layout {
-    grid-template-columns: 1fr;
-  }
+  color: var(--text-dark);
 }
 </style>
