@@ -1,5 +1,5 @@
 {
-  "name": "smart-assistant-frontend",
+  "name": "invest-edu-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -9,13 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.7.0",
     "element-plus": "^2.9.0",
+    "pinia": "^4.0.3",
     "vue": "^3.4.0",
     "vue-router": "^4.3.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
+    "sass-embedded": "^1.102.0",
     "vite": "^5.0.0"
   }
 }

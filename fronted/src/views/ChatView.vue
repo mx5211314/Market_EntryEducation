@@ -1,43 +1,90 @@
 <template>
-  <section class="page-panel chat-page">
-    <div class="page-intro">
-      <div>
-        <h2>智能法规问答</h2>
-        <p>围绕证券交易规则、融资融券、投资者适当性等问题进行咨询，回答会保留风险提示和法规来源。</p>
+  <div class="chat-page">
+    <div class="chat-layout">
+      <!-- 对话主区 -->
+      <div class="chat-main">
+        <div class="chat-header">
+          <div>
+            <h2>💬 智能法规问答</h2>
+            <p>
+              围绕交易规则、融资融券、适当性等问题咨询，回答保留风险提示和法规来源。
+            </p>
+          </div>
+          <button
+            class="clear-btn"
+            @click="clearChat"
+            :disabled="loading || messages.length === 0">
+            清空对话
+          </button>
+        </div>
+
+        <div class="chat-window" ref="chatWindow">
+          <div v-if="messages.length === 0" class="empty-state">
+            <span class="empty-icon">🎯</span>
+            <strong>可以直接提问</strong>
+            <span>例如：融资融券交易中哪些情况会被强制平仓？</span>
+          </div>
+
+          <div
+            v-for="(msg, idx) in messages"
+            :key="idx"
+            :class="['message', msg.role]">
+            <div class="avatar">{{ msg.role === 'user' ? '我' : '答' }}</div>
+            <div class="text">{{ msg.content }}</div>
+          </div>
+
+          <div v-if="loading" class="message assistant">
+            <div class="avatar">答</div>
+            <div class="text typing">正在检索法规并生成回答...</div>
+          </div>
+        </div>
+
+        <div class="input-bar">
+          <el-input
+            v-model="inputText"
+            placeholder="请输入投资问题..."
+            @keyup.enter="sendMessage"
+            :disabled="loading"
+            size="large"
+            class="chat-input">
+            <template #append>
+              <el-button @click="sendMessage" :loading="loading" type="primary"
+                >发送</el-button
+              >
+            </template>
+          </el-input>
+        </div>
       </div>
-      <el-button text @click="clearChat" :disabled="loading || messages.length === 0">清空对话</el-button>
+
+      <!-- 右侧统计卡片 -->
+      <div class="stats-side">
+        <div class="stat-card">
+          <div class="stat-number">128</div>
+          <div class="stat-label">今日问答数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">86%</div>
+          <div class="stat-label">测评完成率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">32</div>
+          <div class="stat-label">模拟次数</div>
+        </div>
+        <div class="quick-links">
+          <div class="quick-title">快捷入口</div>
+          <div class="quick-item" @click="$router.push('/risk')">
+            📊 风险测评
+          </div>
+          <div class="quick-item" @click="$router.push('/sim')">
+            📈 模拟引导
+          </div>
+          <div class="quick-item" @click="$router.push('/report')">
+            📋 风险报告
+          </div>
+        </div>
+      </div>
     </div>
-
-    <div class="chat-window surface" ref="chatWindow">
-      <div v-if="messages.length === 0" class="empty-state">
-        <strong>可以直接提问</strong>
-        <span>例如：融资融券交易中哪些情况会被强制平仓？</span>
-      </div>
-
-      <div v-for="(msg, idx) in messages" :key="idx" :class="['message', msg.role]">
-        <div class="avatar">{{ msg.role === 'user' ? '我' : '答' }}</div>
-        <div class="text">{{ msg.content }}</div>
-      </div>
-
-      <div v-if="loading" class="message assistant">
-        <div class="avatar">答</div>
-        <div class="text typing">正在检索法规并生成回答...</div>
-      </div>
-    </div>
-
-    <div class="input-area surface">
-      <el-input
-        v-model="inputText"
-        placeholder="请输入投资问题..."
-        @keyup.enter="sendMessage"
-        :disabled="loading"
-        size="large">
-        <template #append>
-          <el-button @click="sendMessage" :loading="loading" type="primary">发送</el-button>
-        </template>
-      </el-input>
-    </div>
-  </section>
+  </div>
 </template>
 
 <script setup>
@@ -75,10 +122,14 @@ const sendMessage = async () => {
   try {
     const response = await fetch('/api/chat/stream', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + localStorage.getItem('token'),
+      },
       body: JSON.stringify({ message: text, sessionId: sessionId.value }),
     })
-    if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
+    if (!response.ok || !response.body)
+      throw new Error(`HTTP ${response.status}`)
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     const botMsg = { role: 'assistant', content: '' }
@@ -122,29 +173,78 @@ const scrollToBottom = () => {
 
 <style scoped>
 .chat-page {
-  height: calc(100vh - 144px);
+  height: 100%;
+}
+.chat-layout {
+  display: flex;
+  gap: 18px;
+  height: 100%;
+}
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.chat-header h2 {
+  font-size: 20px;
+  color: var(--text-dark);
+  margin-bottom: 4px;
+}
+.chat-header p {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.clear-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.clear-btn:hover:not(:disabled) {
+  border-color: #ff8a9b;
+  color: #ff6a88;
+}
+.clear-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .chat-window {
   flex: 1;
-  min-height: 360px;
   overflow-y: auto;
   padding: 22px;
+  background: #fefafb;
 }
-
 .empty-state {
-  min-height: 220px;
-  display: grid;
-  place-content: center;
-  text-align: center;
-  color: #6f8294;
+  height: 100%;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
 }
-
+.empty-icon {
+  font-size: 40px;
+}
 .empty-state strong {
-  display: block;
-  margin-bottom: 8px;
-  color: #132a3a;
-  font-size: 20px;
+  font-size: 18px;
+  color: var(--text-dark);
 }
 
 .message {
@@ -153,63 +253,100 @@ const scrollToBottom = () => {
   gap: 10px;
   margin: 14px 0;
 }
-
 .message.user {
   flex-direction: row-reverse;
 }
-
 .avatar {
   width: 36px;
   height: 36px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  background: #e8eef4;
-  color: #40576a;
+  border-radius: 50%;
+  background: #fce4e8;
+  color: #ff6a88;
   font-weight: 700;
   flex-shrink: 0;
 }
-
 .message.user .avatar {
-  background: #0b4f82;
+  background: #a4508b;
   color: white;
 }
-
 .text {
-  max-width: min(760px, 78%);
-  padding: 12px 15px;
-  border-radius: 8px;
+  max-width: min(600px, 75%);
+  padding: 12px 16px;
+  border-radius: 14px;
   background: #f4f7fa;
-  color: #263847;
+  color: var(--text-dark);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
 }
-
 .message.user .text {
-  background: #0b4f82;
+  background: linear-gradient(135deg, #ff9a8b, #ff6a88);
   color: white;
 }
-
 .typing {
-  color: #738699;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
-.input-area {
-  padding: 12px;
+.input-bar {
+  padding: 14px 18px;
+  border-top: 1px solid var(--border-soft);
+  background: #fff;
+}
+.chat-input :deep(.el-input__wrapper) {
+  border-radius: 12px;
 }
 
-@media (max-width: 820px) {
-  .chat-page {
-    height: auto;
-  }
+/* 右侧统计 */
+.stats-side {
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.stat-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 18px;
+  text-align: center;
+}
+.stat-number {
+  font-size: 26px;
+  font-weight: 700;
+  color: #ff6a88;
+}
+.stat-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
 
-  .chat-window {
-    min-height: 420px;
-  }
-
-  .text {
-    max-width: 82%;
-  }
+.quick-links {
+  background: var(--card-bg);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 14px;
+}
+.quick-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 8px;
+}
+.quick-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.quick-item:hover {
+  background: #fce4e8;
+  color: #ff6a88;
 }
 </style>
