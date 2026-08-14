@@ -2,10 +2,16 @@ package com.investedu.smartassistant.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.investedu.smartassistant.agent.InvestmentAgent;
+import com.investedu.smartassistant.entity.ChatMessage;
+import com.investedu.smartassistant.entity.ChatSession;
+import com.investedu.smartassistant.entity.User;
 import com.investedu.smartassistant.retriever.HybridRetriever;
+import com.investedu.smartassistant.service.ChatMessageService;
+import com.investedu.smartassistant.service.ChatSessionService;
 import com.investedu.smartassistant.service.QueryRewriter;
 import com.investedu.smartassistant.service.ResponseValidator;
-import com.investedu.smartassistant.service.SessionService;
+import com.investedu.smartassistant.service.UserService;
+import com.investedu.smartassistant.util.JwtUtil;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +48,16 @@ public class ChatController {
     private ResponseValidator responseValidator;
 
     @Autowired
-    private SessionService sessionService;
+    private ChatMessageService chatMessageService;
+
+    @Autowired
+    private ChatSessionService chatSessionService;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Value("${langchain4j.open-ai.chat-model.api-key}")
     private String apiKey;
@@ -56,7 +71,6 @@ public class ChatController {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // 系统人设（将用作 system message）
     private static final String SYSTEM_PROMPT =
             "你是“入市教育智慧助手”，一个由金融法规知识驱动的智能伴学系统。\n" +
                     "你的使命是帮助投资者理解证券交易规则、融资融券业务、风险测评等金融知识，并引导他们通过模拟交易熟悉市场。\n" +
@@ -65,90 +79,140 @@ public class ChatController {
                     "不要编造知识库中没有的法规，如果知识库无相关内容，请基于通用金融知识回答，并注明“仅供参考”。";
 
     /**
-     * 同步问答接口（保留，可用于内部调用或无记忆场景）
+     * 同步问答接口（支持持久化会话）
      */
     @PostMapping("/chat")
-    public Map<String, String> chat(@RequestBody Map<String, String> request) {
-        String sessionId = request.getOrDefault("sessionId", "default");
+    public Map<String, String> chat(@RequestBody Map<String, String> request,
+                                    @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String sessionId = request.getOrDefault("sessionId", "");
         String userMessage = request.get("message");
         if (userMessage == null || userMessage.trim().isEmpty()) {
             return Map.of("reply", "您好，请问有什么可以帮您的？");
         }
 
-        // 获取历史消息
-        List<Map<String, String>> history = sessionService.getHistory(sessionId);
-        sessionService.addMessage(sessionId, "user", userMessage);
+        // 获取当前用户
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("未登录");
+        }
+        String token = authHeader.substring(7);
+        String username = jwtUtil.getUsernameFromToken(token);
+        User user = userService.findByUsername(username);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        Long userId = user.getId();
 
-        // 意图重写，判断是否闲聊
-        String rewritten = queryRewriter.rewrite(userMessage);
-        String reply;
-
-        if (QueryRewriter.isChat(rewritten)) {
-            // 闲聊：使用带历史的 prompt 生成回答
-            reply = chatWithHistory(history, userMessage);
+        // 创建或更新会话
+        if (sessionId.isEmpty()) {
+            ChatSession newSession = chatSessionService.createSession(userId, userMessage.substring(0, Math.min(20, userMessage.length())));
+            sessionId = newSession.getSessionId();
         } else {
-            // 金融问题：检索知识库，构建增强 prompt
-            List<TextSegment> relevant = hybridRetriever.retrieve(rewritten, 4);
-            String context = relevant.stream()
-                    .map(TextSegment::text)
-                    .collect(Collectors.joining("\n\n"));
-            String prompt = buildFinancePrompt(context, userMessage, history);
-            reply = responseValidator.generateWithValidation(prompt, 2);
+            chatSessionService.touchSession(userId, sessionId);
         }
 
-        sessionService.addMessage(sessionId, "assistant", reply);
-        return Map.of("reply", reply);
+        // 保存用户消息
+        chatMessageService.saveMessage(sessionId, userId, "user", userMessage);
+
+        // 获取历史消息
+        List<Map<String, String>> history = chatMessageService.listMessages(sessionId).stream()
+                .map(msg -> Map.of("role", msg.getRole(), "content", msg.getContent()))
+                .collect(Collectors.toList());
+
+        // 意图重写与回答生成
+        String rewritten = queryRewriter.rewrite(userMessage);
+        String reply;
+        if (QueryRewriter.isChat(rewritten)) {
+            reply = chatWithHistory(history, userMessage);
+        } else {
+            List<TextSegment> relevant = hybridRetriever.retrieve(rewritten, 4);
+            String context = relevant.stream().map(TextSegment::text).collect(Collectors.joining("\n\n"));
+            reply = responseValidator.generateWithValidation(buildFinancePrompt(context, userMessage, history), 2);
+        }
+
+        // 保存助手消息
+        chatMessageService.saveMessage(sessionId, userId, "assistant", reply);
+
+        return Map.of("reply", reply, "sessionId", sessionId);
     }
 
     /**
-     * 流式问答接口（SSE，支持记忆、闲聊、流式金融检索）
+     * 流式问答接口（SSE，支持持久化会话）
      */
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chatStream(@RequestBody Map<String, String> request) {
+    public SseEmitter chatStream(@RequestBody Map<String, String> request,
+                                 @RequestHeader(value = "Authorization", required = false) String authHeader) {
         SseEmitter emitter = new SseEmitter(0L);
-        String sessionId = request.getOrDefault("sessionId", "default");
+        String sessionId = request.getOrDefault("sessionId", "");
         String userMessage = request.get("message");
         if (userMessage == null || userMessage.trim().isEmpty()) {
             sendSingleSseEvent(emitter, "您好，请问有什么可以帮您的？");
             return emitter;
         }
 
+        // 获取当前用户
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            emitter.completeWithError(new RuntimeException("未登录"));
+            return emitter;
+        }
+        String token = authHeader.substring(7);
+        String username = jwtUtil.getUsernameFromToken(token);
+        User user = userService.findByUsername(username);
+        if (user == null) {
+            emitter.completeWithError(new RuntimeException("用户不存在"));
+            return emitter;
+        }
+        Long userId = user.getId();
+
+        // 创建或更新会话
+        if (sessionId.isEmpty()) {
+            ChatSession newSession = chatSessionService.createSession(userId, userMessage.substring(0, Math.min(20, userMessage.length())));
+            sessionId = newSession.getSessionId();
+        } else {
+            chatSessionService.touchSession(userId, sessionId);
+        }
+
+        // 保存用户消息
+        chatMessageService.saveMessage(sessionId, userId, "user", userMessage);
+
         // 获取历史消息
-        List<Map<String, String>> history = sessionService.getHistory(sessionId);
-        sessionService.addMessage(sessionId, "user", userMessage);
+        List<Map<String, String>> history = chatMessageService.listMessages(sessionId).stream()
+                .map(msg -> Map.of("role", msg.getRole(), "content", msg.getContent()))
+                .collect(Collectors.toList());
+
+        // 为 lambda 创建 final 副本
+        final String finalSessionId = sessionId;
+        final Long finalUserId = userId;
+        final String finalUserMessage = userMessage;
+        final List<Map<String, String>> finalHistory = history;
 
         CompletableFuture.runAsync(() -> {
             try {
-                String rewritten = queryRewriter.rewrite(userMessage);
+                String rewritten = queryRewriter.rewrite(finalUserMessage);
 
-                // 闲聊：生成回答并一次性发送
+                // 闲聊：直接生成并一次性发送
                 if (QueryRewriter.isChat(rewritten)) {
-                    String reply = chatWithHistory(history, userMessage);
-                    sessionService.addMessage(sessionId, "assistant", reply);
+                    String reply = chatWithHistory(finalHistory, finalUserMessage);
+                    chatMessageService.saveMessage(finalSessionId, finalUserId, "assistant", reply);
                     sendSingleSseEvent(emitter, reply);
                     return;
                 }
 
-                // ---- 金融问题：检索知识库，构建流式 API 的 messages ----
+                // 金融问题：检索知识库，构建流式 API 的 messages
                 List<TextSegment> relevant = hybridRetriever.retrieve(rewritten, 4);
-                String context = relevant.stream()
-                        .map(TextSegment::text)
-                        .collect(Collectors.joining("\n\n"));
+                String context = relevant.stream().map(TextSegment::text).collect(Collectors.joining("\n\n"));
 
-                // 构造 messages 数组：系统提示 + 历史消息 + 当前用户消息（含知识库）
                 List<Map<String, Object>> messages = new ArrayList<>();
                 messages.add(Map.of("role", "system", "content", SYSTEM_PROMPT));
-                for (Map<String, String> msg : history) {
+                for (Map<String, String> msg : finalHistory) {
                     messages.add(Map.of("role", msg.get("role"), "content", msg.get("content")));
                 }
-                // 当前用户消息附带知识库上下文
                 String userPrompt = String.format(
                         "根据以下金融法规知识，回答用户问题。回答中必须包含“风险提示”和“法规来源”。\n\n知识库：\n%s\n\n用户：%s",
                         context.isEmpty() ? "无相关知识" : context,
-                        userMessage);
+                        finalUserMessage);
                 messages.add(Map.of("role", "user", "content", userPrompt));
 
-                // ---- 调用百炼流式 API ----
+                // 调用百炼流式 API
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 headers.set("Authorization", "Bearer " + apiKey);
@@ -190,12 +254,11 @@ public class ChatController {
                             }
                         }
                     } catch (Exception e) {
-                        // 读取流异常
                         emitter.completeWithError(e);
                         return null;
                     }
-                    // 保存助手回答到会话历史
-                    sessionService.addMessage(sessionId, "assistant", fullReply.toString());
+                    // 保存助手消息
+                    chatMessageService.saveMessage(finalSessionId, finalUserId, "assistant", fullReply.toString());
                     emitter.complete();
                     return null;
                 });
@@ -222,9 +285,6 @@ public class ChatController {
 
     // ==================== 私有辅助方法 ====================
 
-    /**
-     * 发送单条 SSE 事件并关闭连接
-     */
     private void sendSingleSseEvent(SseEmitter emitter, String message) {
         try {
             emitter.send(SseEmitter.event().data(message));
@@ -234,9 +294,6 @@ public class ChatController {
         }
     }
 
-    /**
-     * 构建金融问答的 prompt 字符串（用于同步接口或闲聊）
-     */
     private String buildFinancePrompt(String context, String currentMsg, List<Map<String, String>> history) {
         StringBuilder sb = new StringBuilder();
         sb.append(SYSTEM_PROMPT).append("\n\n");
@@ -250,9 +307,6 @@ public class ChatController {
         return sb.toString();
     }
 
-    /**
-     * 闲聊时生成回答（带历史）
-     */
     private String chatWithHistory(List<Map<String, String>> history, String currentMsg) {
         StringBuilder sb = new StringBuilder();
         sb.append(SYSTEM_PROMPT).append("\n\n");

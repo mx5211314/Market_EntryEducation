@@ -32,14 +32,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
+            System.out.println("收到 token: " + token);
             if (jwtUtil.validateToken(token)) {
                 String username = jwtUtil.getUsernameFromToken(token);
+                System.out.println("JWT 有效，用户名: " + username);
                 UserDetails userDetails = new User(username, "", new ArrayList<>());
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+            } else {
+                System.out.println("JWT 验证失败");
             }
+        } else {
+            System.out.println("请求头中没有 Authorization 或格式错误");
         }
         filterChain.doFilter(request, response);
     }
