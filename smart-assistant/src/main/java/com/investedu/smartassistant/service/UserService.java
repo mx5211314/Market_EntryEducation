@@ -92,7 +92,7 @@ public class UserService {
     /**
      * 修改个人信息（包含手机号）
      */
-    public void updateProfile(Long id, String nickname, String gender, Integer age, String signature, String phone) {
+    public void updateProfile(Long id, String nickname, String gender, Integer age, String signature, String phone, String avatar) {
         User user = userMapper.selectById(id);
         if (user == null) throw new RuntimeException("用户不存在");
 
@@ -100,6 +100,7 @@ public class UserService {
         if (gender != null) user.setGender(gender);
         if (age != null) user.setAge(age);
         if (signature != null) user.setSignature(signature);
+        // if (avatar != null) user.setAvatar(avatar);  // 暂时注释，数据库列待添加
         if (phone != null) {
             if (!phone.isEmpty() && !PHONE_PATTERN.matcher(phone).matches()) {
                 throw new RuntimeException("手机号格式不正确");

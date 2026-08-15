@@ -19,6 +19,7 @@ public class User {
     private Integer age;
     private String signature;
     private Integer status;
+    // private String avatar;  // 暂时注释，数据库列待添加
     private String phone;
     private String openid;
     private Long githubId;

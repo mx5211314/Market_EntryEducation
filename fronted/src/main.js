@@ -8,24 +8,29 @@ import { createPinia } from 'pinia'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import axios from 'axios'
 
+// 设置axios默认配置
+axios.defaults.baseURL = ''
+
 axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
+}, (error) => {
+  return Promise.reject(error)
 })
 
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('username')
-      localStorage.removeItem('nickname')
-      localStorage.removeItem('role')
-      localStorage.removeItem('userInfo')
-      window.location.href = '/login'
+      sessionStorage.removeItem('token')
+      sessionStorage.removeItem('username')
+      sessionStorage.removeItem('nickname')
+      sessionStorage.removeItem('role')
+      sessionStorage.removeItem('userInfo')
+      router.push('/auth/login')
     }
     return Promise.reject(error)
   },

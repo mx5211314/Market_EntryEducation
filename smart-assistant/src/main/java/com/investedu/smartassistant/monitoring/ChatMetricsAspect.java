@@ -48,4 +48,27 @@ public class ChatMetricsAspect {
         log.info("📊 流式问答监控 | 总耗时: {}ms (流式连接已建立)", totalTime);
         return result;
     }
+
+    @Around("execution(* com.investedu.smartassistant.controller.ChatController.agentGuidance(..))")
+    public Object logAgentGuidance(ProceedingJoinPoint joinPoint) throws Throwable {
+        long start = System.currentTimeMillis();
+        Object result = joinPoint.proceed();
+        long totalTime = System.currentTimeMillis() - start;
+
+        String userInput = "";
+        Object[] args = joinPoint.getArgs();
+        if (args.length > 0 && args[0] instanceof Map) {
+            Object msg = ((Map<?, ?>) args[0]).get("message");
+            if (msg != null) userInput = msg.toString();
+        }
+
+        if (result instanceof Map) {
+            String guidance = (String) ((Map<?, ?>) result).get("guidance");
+            int len = guidance != null ? guidance.length() : 0;
+            log.info("🤖 Agent引导监控 | 输入长度: {} | 回复长度: {} | 总耗时: {}ms",
+                    userInput.length(), len, totalTime);
+        }
+
+        return result;
+    }
 }

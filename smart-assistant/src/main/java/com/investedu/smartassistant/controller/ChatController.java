@@ -79,6 +79,38 @@ public class ChatController {
                     "不要编造知识库中没有的法规，如果知识库无相关内容，请基于通用金融知识回答，并注明“仅供参考”。";
 
     /**
+     * 获取会话列表
+     */
+    @GetMapping("/chat")
+    public List<Map<String, Object>> getSessionList(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("未登录");
+        }
+        String token = authHeader.substring(7);
+        String username = jwtUtil.getUsernameFromToken(token);
+        User user = userService.findByUsername(username);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        List<ChatSession> sessions = chatSessionService.listSessions(user.getId());
+        return sessions.stream().map(session -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("sessionId", session.getSessionId());
+            map.put("title", session.getTitle());
+            map.put("createdAt", session.getCreatedAt());
+            map.put("updatedAt", session.getUpdatedAt());
+            // 获取最后一条消息
+            List<ChatMessage> messages = chatMessageService.listMessages(session.getSessionId());
+            if (!messages.isEmpty()) {
+                ChatMessage lastMsg = messages.get(messages.size() - 1);
+                map.put("lastMessage", lastMsg.getContent());
+            }
+            return map;
+        }).collect(Collectors.toList());
+    }
+
+    /**
      * 同步问答接口（支持持久化会话）
      */
     @PostMapping("/chat")

@@ -6,15 +6,23 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
 public class HybridRetriever {
+
+    private static final Logger log = LoggerFactory.getLogger(HybridRetriever.class);
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Autowired
     private EmbeddingModel embeddingModel;
@@ -23,14 +31,19 @@ public class HybridRetriever {
     @Qualifier("milvusEmbeddingStore")
     private EmbeddingStore<TextSegment> milvusStore;
 
-    // 暂时不用 ES 检索，保留双写即可
-    // @Autowired
-    // private ElasticsearchEmbeddingStore esStore;
+    @Value("${elasticsearch.host}")
+    private String esHost;
+
+    @Value("${elasticsearch.port}")
+    private int esPort;
+
+    @Value("${elasticsearch.index-name}")
+    private String esIndex;
 
     public List<TextSegment> retrieve(String query, int maxResults) {
         Embedding queryEmbedding = embeddingModel.embed(query).content();
 
-        // 1. Milvus 向量检索（多召回一些用于重排）
+        // 1. Milvus 向量检索
         List<TextSegment> milvusResults = milvusStore.search(
                         EmbeddingSearchRequest.builder()
                                 .queryEmbedding(queryEmbedding)
@@ -40,17 +53,48 @@ public class HybridRetriever {
                 .map(EmbeddingMatch::embedded)
                 .collect(Collectors.toList());
 
-        // 2. 去重
+        // 2. ES BM25 关键词检索
+        List<TextSegment> esResults = esKeywordSearch(query, maxResults * 2);
+
+        // 3. 合并去重（Milvus 优先）
         Set<String> seen = new HashSet<>();
         List<TextSegment> combined = new ArrayList<>();
         for (TextSegment seg : milvusResults) {
-            if (seen.add(seg.text())) {
-                combined.add(seg);
-            }
+            if (seen.add(seg.text())) combined.add(seg);
+        }
+        for (TextSegment seg : esResults) {
+            if (seen.add(seg.text())) combined.add(seg);
         }
 
-        // 3. 本地 Embedding 重排序
+        // 4. 本地 Embedding 重排序
         return rerankByEmbedding(query, combined, maxResults);
+    }
+
+    private List<TextSegment> esKeywordSearch(String query, int size) {
+        String url = "http://" + esHost + ":" + esPort + "/" + esIndex + "/_search";
+        Map<String, Object> body = new HashMap<>();
+        body.put("size", size);
+        body.put("query", Map.of("match", Map.of("text", query)));
+        try {
+            Map<String, Object> resp = restTemplate.postForObject(url, body, Map.class);
+            if (resp == null) return List.of();
+            Map<String, Object> hits = (Map<String, Object>) resp.get("hits");
+            if (hits == null) return List.of();
+            List<Map<String, Object>> hitList = (List<Map<String, Object>>) hits.get("hits");
+            if (hitList == null) return List.of();
+            return hitList.stream()
+                    .map(h -> {
+                        Map<String, Object> source = (Map<String, Object>) h.get("_source");
+                        if (source == null) return null;
+                        String text = (String) source.get("text");
+                        return text != null ? TextSegment.from(text) : null;
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("ES BM25 检索失败，降级为仅 Milvus 检索: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     private List<TextSegment> rerankByEmbedding(String query, List<TextSegment> candidates, int topN) {

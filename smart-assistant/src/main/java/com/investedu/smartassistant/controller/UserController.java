@@ -34,6 +34,7 @@ public class UserController {
         map.put("signature", user.getSignature());
         map.put("role", user.getRole());
         map.put("status", user.getStatus());
+        // map.put("avatar", user.getAvatar());  // 暂时注释，数据库列待添加
         map.put("phone", user.getPhone());
         return map;
     }
@@ -48,7 +49,8 @@ public class UserController {
         Integer age = body.containsKey("age") && !body.get("age").isEmpty() ? Integer.parseInt(body.get("age")) : null;
         String signature = body.get("signature");
         String phone = body.get("phone");   // 新增
-        userService.updateProfile(user.getId(), nickname, gender, age, signature, phone);
+        // String avatar = body.get("avatar");  // 暂时注释，数据库列待添加
+        userService.updateProfile(user.getId(), nickname, gender, age, signature, phone, null);
         return Map.of("message", "修改成功");
     }
     // 修改密码

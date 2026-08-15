@@ -60,6 +60,9 @@ public class AiConfig {
     @Value("${elasticsearch.index-name}")
     private String esIndex;
 
+    @Value("${langchain4j.dashscope.embedding-model.dimensions:1024}")
+    private int embeddingDimension;
+
     @Bean
     public ChatLanguageModel chatLanguageModel() {
         return OpenAiChatModel.builder()
@@ -87,7 +90,7 @@ public class AiConfig {
                 .host(milvusHost)
                 .port(milvusPort)
                 .collectionName(milvusCollection)
-                .dimension(1024)   //  // 根据你的 Embedding 模型调整（v1:1024, v2:1536 v3:改为 1024）
+                .dimension(embeddingDimension)
                 .build();
     }
 
@@ -96,7 +99,7 @@ public class AiConfig {
         return ElasticsearchEmbeddingStore.builder()
                 .serverUrl("http://" + esHost + ":" + esPort)
                 .indexName(esIndex)
-                .dimension(1024)   // 改为 1024
+                .dimension(embeddingDimension)
                 .build();
     }
 

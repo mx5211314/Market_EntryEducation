@@ -39,7 +39,6 @@ mybatis-plus:
 jwt:
   secret: ${JWT_SECRET:your-jwt-secret-please-change}
   expiration: ${JWT_EXPIRATION:86400000}   # 过期时间（毫秒），默认1天
-
 # LangChain4j 与阿里云百炼模型配置
 langchain4j:
   open-ai:

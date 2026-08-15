@@ -10,7 +10,10 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "@wangeditor/editor": "^5.1.23",
+    "@wangeditor/editor-for-vue": "^5.1.12",
     "axios": "^1.7.0",
+    "echarts": "^6.1.0",
     "element-plus": "^2.9.0",
     "pinia": "^4.0.3",
     "vue": "^3.4.0",
@@ -18,7 +21,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
-    "sass-embedded": "^1.102.0",
+    "sass": "^1.102.0",
     "vite": "^5.0.0"
   }
 }

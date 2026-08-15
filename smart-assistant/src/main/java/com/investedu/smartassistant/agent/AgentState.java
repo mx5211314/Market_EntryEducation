@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.simpleframework.xml.ElementListUnion;
 
 import java.util.Map;
 // Agent 状态
