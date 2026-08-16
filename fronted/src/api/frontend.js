@@ -15,7 +15,7 @@ export const getCurrentUser = () => {
 
 // 聊天相关接口
 export const startSession = (data) => {
-  return request.post('/chat', data)
+  return request.post('/session/create', data)
 }
 
 export const getSessionList = (params) => {
@@ -23,11 +23,11 @@ export const getSessionList = (params) => {
 }
 
 export const deleteSession = (sessionId) => {
-  return request.delete(`/chat/sessions/${sessionId}`)
+  return request.delete(`/session/${sessionId}`)
 }
 
 export const getSessionDetail = (sessionId) => {
-  return request.get(`/chat/sessions/${sessionId}/messages`)
+  return request.get(`/session/${sessionId}/messages`)
 }
 
 export const sendMessageStream = (data) => {
@@ -39,6 +39,11 @@ export const sendMessageStream = (data) => {
     },
     body: JSON.stringify(data),
   })
+}
+
+// 情绪分析接口
+export const getSessionEmotion = (sessionId) => {
+  return request.get(`/chat/analyze-session/${sessionId}`)
 }
 
 // 文章相关接口

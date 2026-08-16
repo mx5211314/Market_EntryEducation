@@ -38,7 +38,7 @@
         </div>
       </el-header>
 
-      <el-main>
+      <el-main :class="{ 'no-pad': $route.path === '/' || $route.path === '/chat' }">
         <router-view />
       </el-main>
     </el-container>
@@ -114,10 +114,12 @@ const handleCommand = (command) => {
 
   .el-header {
     background-color: #fff;
-    border-bottom: 1px solid #e4e7ed;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--border-light);
+    box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
     padding: 0 !important;
     height: 60px !important;
+    position: relative;
+    z-index: 10;
 
     .header-content {
       display: flex;
@@ -172,7 +174,13 @@ const handleCommand = (command) => {
   }
 
   .el-main {
-    padding: 0;
+    padding: 24px;
+    background: #f5f7fa;
+
+    &.no-pad {
+      padding: 0;
+      background: transparent;
+    }
   }
 }
 </style>

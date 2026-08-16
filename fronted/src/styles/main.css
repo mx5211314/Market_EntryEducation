@@ -30,6 +30,7 @@ li {
 :root {
   --bg-gray: #f1f4f6;
   --text-primary: #303133;
+  --text-dark: #1a1a1a;
   --text-secondary: #606266;
   --text-muted: #909399;
   --border-color: #dcdfe6;
@@ -44,12 +45,14 @@ li {
 
   /* 阴影效果 */
   --shadow-sm: 0px 1px 1px rgba(0,0,0,0.05);
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.06);
   --shadow-md: 0px 4px 12px 0px rgba(0,0,0,0.1);
   --shadow-lg: 0px 8px 32px rgba(0,0,0,0.12);
 
   /* 圆角 */
   --radius-sm: 4px;
   --radius-md: 8px;
+  --radius-card: 16px;
   --radius-lg: 12px;
   --radius-xl: 20px;
 
@@ -251,12 +254,8 @@ button, input, textarea {
   border-radius: var(--radius-sm);
 }
 
-.el-header {
-  height: 50px !important;
-  padding: 0 !important;
-  box-shadow: 0px 1px 1px rgba(0,0,0,0.05);
-  border-bottom: 1px solid var(--border-light);
-}
+/* ===== 全局 el-header 默认样式 ===== */
+/* 具体组件可通过 scoped 样式覆盖 */
 
 /* ===== 滚动条 ===== */
 

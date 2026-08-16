@@ -12,212 +12,185 @@
       <div class="orb orb-orange"></div>
     </div>
 
-    <!-- 顶部横向进度条 -->
-    <div class="progress" :style="{ width: progressPct + '%', backgroundColor: 'blue' }"></div>
+    <!-- 顶部进度条 -->
+    <div class="progress" :style="{ width: progressPct + '%' }"></div>
 
-    <!-- 横向滚动视口 -->
-    <div
-      class="h-viewport"
-      ref="viewport"
-      @wheel="onWheel"
-      @pointerdown="onPointerDown"
-      @pointermove="onPointerMove"
-      @pointerup="onPointerUp"
-      @pointercancel="onPointerUp">
-      <div class="h-track" ref="track">
-        <!-- ========== 分区一：首屏 ========== -->
-        <section class="h-section" :class="{ active: active === 0 }">
-          <div class="sec-inner hero-inner">
-            <div class="hero-left">
-              <div class="badge reveal" style="--d: 0.05s">
-                <span class="pulse-dot"></span>
-                AI POWERED · 入市教育智慧助手
-              </div>
-
-              <h1 class="title">
-                <span class="t-row reveal" style="--d: 0.15s">先懂，</span>
-                <span class="t-row t-outline reveal" style="--d: 0.28s"
-                  >再投。</span
-                >
-                <span class="t-row reveal" style="--d: 0.41s">
-                  <span class="t-accent">AI 陪你走全程</span
-                  ><em class="t-dot">.</em>
-                </span>
-              </h1>
-
-              <p class="desc reveal" style="--d: 0.54s">
-                用对话式 AI、结构化知识库与模拟引导，帮助每一位新手投资者<br />
-                在真实入市之前，建立理性、系统的投资认知。
-              </p>
-
-              <div class="cta reveal" style="--d: 0.66s">
-                <el-button
-                  size="large"
-                  type="primary"
-                  @click="handleFirstSectionLogin"
-                  >开始对话</el-button
-                >
-                <el-button
-                  size="large"
-                  plain
-                  @click="handleFirstSectionKnowledge"
-                  >探索知识库</el-button
-                >
-              </div>
-
-              <div class="stats reveal" style="--d: 0.78s">
-                <div class="stat">
-                  <b>{{ display(5) }}+</b>
-                  <span>核心功能模块</span>
-                </div>
-                <div class="stat">
-                  <b>{{ display(1000) }}+</b>
-                  <span>金融知识条目</span>
-                </div>
-                <div class="stat">
-                  <b>24/7</b>
-                  <span>智能助手在线</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="hero-right reveal" style="--d: 0.5s">
-              <div class="chat-card">
-                <div class="chat-head">
-                  <div class="avatar">AI</div>
-                  <div class="chat-meta">
-                    <div class="chat-name">入市教育智慧助手</div>
-                    <div class="chat-status"><i></i>在线 · 随时答疑</div>
-                  </div>
-                </div>
-                <div class="chat-body">
-                  <div class="msg msg-user">新手入市，第一笔钱该怎么规划？</div>
-                  <div class="msg msg-ai">
-                    先做三件事：① 完成风险测评 ② 只用闲钱投资 ③
-                    在知识库理解基金与股票的区别。我们一步步来～
-                  </div>
-                  <div class="typing">
-                    <span></span><span></span><span></span>
-                  </div>
-                </div>
-                <div class="chat-input">
-                  <span>把你的问题交给 AI…</span>
-                  <el-icon><TopRight /></el-icon>
-                </div>
-              </div>
-
-              <div class="chip chip-1">📊 风险测评结果 · 稳健型 C3</div>
-              <div class="chip chip-2">📚 已收录 1000+ 金融知识</div>
-            </div>
-          </div>
-
-          <div class="scroll-hint reveal" style="--d: 1.1s">
-            滚动或拖动，探索更多
-            <span class="hint-arrow">⟶</span>
-          </div>
-        </section>
-
-        <!-- ========== 分区二：五大核心模块（Bento 风格） ========== -->
-        <section class="h-section" :class="{ active: active === 1 }">
-          <div class="sec-inner">
-            <div class="sec-head reveal">
-              <span class="sec-label">CORE MODULES</span>
-              <h2 class="sec-title">
-                五大核心<span class="sec-accent">功能模块</span>
-              </h2>
-              <p class="sec-sub">从认知到实践，一站式投资教育平台</p>
-            </div>
-            <div class="bento-grid">
-              <div
-                class="bento-card bento-main reveal"
-                :style="{ '--d': '0.12s', '--ac': features[0].color }"
-                @click="$router.push(features[0].path)">
-                <div class="bento-icon">{{ features[0].icon }}</div>
-                <h3>{{ features[0].title }}</h3>
-                <p>{{ features[0].desc }}</p>
-                <div class="b-link">
-                  进入模块 <el-icon><ArrowRight /></el-icon>
-                </div>
-              </div>
-              <div
-                class="bento-card reveal"
-                v-for="(f, i) in features.slice(1)"
-                :key="f.title"
-                :style="{ '--d': 0.2 + i * 0.08 + 's', '--ac': f.color }"
-                @click="$router.push(f.path)">
-                <div class="b-icon">{{ f.icon }}</div>
-                <h3>{{ f.title }}</h3>
-                <p>{{ f.desc }}</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ========== 分区三：三步流程 ========== -->
-        <section class="h-section" :class="{ active: active === 2 }">
-          <div class="sec-inner">
-            <div class="sec-head reveal">
-              <span class="sec-label">HOW IT WORKS</span>
-              <h2 class="sec-title">
-                三步开启<span class="sec-accent">投资学习</span>之旅
-              </h2>
-              <p class="sec-sub">不必急于实盘，按自己的节奏循序渐进</p>
-            </div>
-            <div class="steps-row">
-              <div
-                class="step reveal"
-                v-for="(s, i) in steps"
-                :key="s.num"
-                :style="{ '--d': 0.15 + i * 0.13 + 's', '--ac': s.color }">
-                <div class="step-num">{{ s.num }}</div>
-                <h3>{{ s.title }}</h3>
-                <p>{{ s.desc }}</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ========== 分区四：开始行动 ========== -->
-        <section class="h-section" :class="{ active: active === 3 }">
-          <div class="sec-inner cta-inner">
-            <div class="badge reveal">
+    <!-- 纵向滚动视口（CSS overflow + scroll-snap） -->
+    <div class="v-viewport" ref="viewport">
+      <!-- ========== 分区一：首屏 ========== -->
+      <section class="v-section" :class="{ active: active === 0 }">
+        <div class="sec-inner hero-inner">
+          <div class="hero-left">
+            <div class="badge reveal" style="--d:.05s">
               <span class="pulse-dot"></span>
-              READY TO START
+              AI POWERED · 入市教育智慧助手
             </div>
-            <h2 class="cta-title reveal" style="--d: 0.12s">
-              让第一笔投资<br />
-              <span class="sec-accent">建立在认知之上</span>
-            </h2>
-            <p class="cta-sub reveal" style="--d: 0.24s">
-              不必独自摸索。先学会理解市场、理解自己，AI 会全程陪伴你的每一步。
+
+            <h1 class="title">
+              <span class="t-row reveal" style="--d:.15s">先懂，</span>
+              <span class="t-row t-outline reveal" style="--d:.28s">再投。</span>
+              <span class="t-row reveal" style="--d:.41s">
+                <span class="t-accent">AI 陪你走全程</span><em class="t-dot">.</em>
+              </span>
+            </h1>
+
+            <p class="desc reveal" style="--d:.54s">
+              用对话式 AI、结构化知识库与模拟引导，帮助每一位新手投资者<br />
+              在真实入市之前，建立理性、系统的投资认知。
             </p>
-            <div class="cta-buttons reveal" style="--d: 0.36s">
-              <el-button
-                size="large"
-                type="primary"
-                @click="handleFourthSectionLogin">
-                开始对话
-                <el-icon class="btn-arrow"><ArrowRight /></el-icon>
-              </el-button>
-              <el-button
-                size="large"
-                @click="handleFourthSectionKnowledge"
-                plain>
-                先看看知识库
-              </el-button>
+
+            <div class="cta reveal" style="--d:.66s">
+              <el-button size="large" type="primary" @click="handleFirstSectionLogin">开始对话</el-button>
+              <el-button size="large" plain @click="handleFirstSectionKnowledge">探索知识库</el-button>
+            </div>
+
+            <div class="stats reveal" style="--d:.78s">
+              <div class="stat">
+                <b>{{ display(5) }}+</b>
+                <span>核心功能模块</span>
+              </div>
+              <div class="stat">
+                <b>{{ display(1000) }}+</b>
+                <span>金融知识条目</span>
+              </div>
+              <div class="stat">
+                <b>24/7</b>
+                <span>智能助手在线</span>
+              </div>
             </div>
           </div>
-        </section>
-      </div>
 
-      <!-- 分区指示点 -->
-      <div class="dots">
-        <span
-          v-for="i in 4"
-          :key="i"
-          :class="{ on: active === i - 1 }"
-          @click="goTo(i - 1)"></span>
-      </div>
+          <div class="hero-right reveal" style="--d:.5s">
+            <div class="chat-card">
+              <div class="chat-head">
+                <div class="avatar">AI</div>
+                <div class="chat-meta">
+                  <div class="chat-name">入市教育智慧助手</div>
+                  <div class="chat-status"><i></i>在线 · 随时答疑</div>
+                </div>
+              </div>
+              <div class="chat-body">
+                <div class="msg msg-user">新手入市，第一笔钱该怎么规划？</div>
+                <div class="msg msg-ai">先做三件事：① 完成风险测评 ② 只用闲钱投资 ③ 在知识库理解基金与股票的区别。我们一步步来～</div>
+                <div class="typing">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+              <div class="chat-input">
+                <span>把你的问题交给 AI…</span>
+                <el-icon><TopRight /></el-icon>
+              </div>
+            </div>
+
+            <div class="chip chip-1">📊 风险测评结果 · 稳健型 C3</div>
+            <div class="chip chip-2">📚 已收录 1000+ 金融知识</div>
+          </div>
+        </div>
+
+        <div class="scroll-hint reveal" style="--d:1.1s">
+          向下滚动，探索更多
+          <span class="hint-arrow">↓</span>
+        </div>
+      </section>
+
+      <!-- ========== 分区二：五大核心模块（Bento 风格） ========== -->
+      <section class="v-section" :class="{ active: active === 1 }">
+        <div class="sec-inner">
+          <div class="sec-head reveal">
+            <span class="sec-label">CORE MODULES</span>
+            <h2 class="sec-title">五大核心<span class="sec-accent">功能模块</span></h2>
+            <p class="sec-sub">从认知到实践，一站式投资教育平台</p>
+          </div>
+          <div class="bento-grid">
+            <div
+              class="bento-card bento-main reveal"
+              :style="{ '--d': '0.12s', '--ac': features[0].color }"
+              @click="$router.push(features[0].path)"
+            >
+              <div class="bento-icon">{{ features[0].icon }}</div>
+              <h3>{{ features[0].title }}</h3>
+              <p>{{ features[0].desc }}</p>
+              <div class="b-link">
+                进入模块 <el-icon><ArrowRight /></el-icon>
+              </div>
+            </div>
+            <div
+              class="bento-card reveal"
+              v-for="(f, i) in features.slice(1)"
+              :key="f.title"
+              :style="{ '--d': (0.2 + i * 0.08) + 's', '--ac': f.color }"
+              @click="$router.push(f.path)"
+            >
+              <div class="b-icon">{{ f.icon }}</div>
+              <h3>{{ f.title }}</h3>
+              <p>{{ f.desc }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 分区三：三步流程 ========== -->
+      <section class="v-section" :class="{ active: active === 2 }">
+        <div class="sec-inner">
+          <div class="sec-head reveal">
+            <span class="sec-label">HOW IT WORKS</span>
+            <h2 class="sec-title">三步开启<span class="sec-accent">投资学习</span>之旅</h2>
+            <p class="sec-sub">不必急于实盘，按自己的节奏循序渐进</p>
+          </div>
+          <div class="steps-row">
+            <div
+              class="step reveal"
+              v-for="(s, i) in steps"
+              :key="s.num"
+              :style="{ '--d': (0.15 + i * 0.13) + 's', '--ac': s.color }"
+            >
+              <div class="step-num">{{ s.num }}</div>
+              <h3>{{ s.title }}</h3>
+              <p>{{ s.desc }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 分区四：开始行动 ========== -->
+      <section class="v-section" :class="{ active: active === 3 }">
+        <div class="sec-inner cta-inner">
+          <div class="badge reveal">
+            <span class="pulse-dot"></span>
+            READY TO START
+          </div>
+          <h2 class="cta-title reveal" style="--d:.12s">
+            让第一笔投资<br />
+            <span class="sec-accent">建立在认知之上</span>
+          </h2>
+          <p class="cta-sub reveal" style="--d:.24s">
+            不必独自摸索。先学会理解市场、理解自己，AI 会全程陪伴你的每一步。
+          </p>
+          <div class="cta-buttons reveal" style="--d:.36s">
+            <el-button
+              size="large"
+              type="primary"
+              @click="handleFourthSectionLogin"
+            >
+              开始对话
+              <el-icon class="btn-arrow"><ArrowRight /></el-icon>
+            </el-button>
+            <el-button
+              size="large"
+              @click="handleFourthSectionKnowledge"
+              plain
+            >
+              先看看知识库
+            </el-button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 向下滚动箭头 -->
+    <div class="scroll-arrow" v-show="active < SECTION_COUNT - 1" @click="goTo(active + 1)">
+      <span class="chevron"></span>
+      <span class="chevron"></span>
     </div>
 
     <!-- 底部跑马灯 -->
@@ -225,8 +198,7 @@
       <div class="ticker-track">
         <template v-for="n in 2" :key="n">
           <span class="tk" v-for="t in terms" :key="t + n">
-            <em>{{ t }}</em
-            ><i>✦</i>
+            <em>{{ t }}</em><i>✦</i>
           </span>
         </template>
       </div>
@@ -235,7 +207,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowRight, TopRight } from '@element-plus/icons-vue'
 
@@ -243,19 +215,15 @@ const router = useRouter()
 
 // ===== 跳转处理函数 =====
 const handleFirstSectionLogin = () => {
-  if (localStorage.getItem('token')) {
-    router.push('/user/chat')
+  if (sessionStorage.getItem('token')) {
+    router.push('/chat')
   } else {
-    router.push('/login')
+    router.push('/auth/login')
   }
 }
 
 const handleFirstSectionKnowledge = () => {
-  if (localStorage.getItem('token')) {
-    router.push('/user/knowledge')
-  } else {
-    router.push('/login')
-  }
+  router.push('/knowledge')
 }
 
 const handleFourthSectionLogin = () => {
@@ -268,73 +236,22 @@ const handleFourthSectionKnowledge = () => {
 
 // ===== 数据 =====
 const terms = [
-  '理性投资',
-  '风险管理',
-  '资产配置',
-  '复利思维',
-  '情绪纪律',
-  '分散投资',
-  '基本面分析',
-  '长期主义',
+  '理性投资', '风险管理', '资产配置', '复利思维',
+  '情绪纪律', '分散投资', '基本面分析', '长期主义'
 ]
 
 const features = [
-  {
-    icon: '💬',
-    title: '智能问答',
-    desc: 'AI 对话即时解答投资疑问，24/7 全天候在线陪伴',
-    path: '/user/chat',
-    color: '#409eff',
-  },
-  {
-    icon: '📚',
-    title: '知识库',
-    desc: '1000+ 结构化金融知识条目，从入门到进阶体系化学习',
-    path: '/user/knowledge',
-    color: '#67c23a',
-  },
-  {
-    icon: '📊',
-    title: '风险测评',
-    desc: '科学问卷定位风险承受等级，认清适合自己的投资方式',
-    path: '/user/assessment',
-    color: '#e6a23c',
-  },
-  {
-    icon: '🎮',
-    title: '模拟引导',
-    desc: '在模拟场景中演练决策，零风险建立真实投资认知',
-    path: '/user/simulation',
-    color: '#409eff',
-  },
-  {
-    icon: '📝',
-    title: '投资日记',
-    desc: '记录每一次思考与决策，复盘沉淀为长期成长',
-    path: '/user/diary',
-    color: '#67c23a',
-  },
+  { icon: '💬', title: '智能问答', desc: 'AI 对话即时解答投资疑问，24/7 全天候在线陪伴', path: '/chat', color: '#409eff' },
+  { icon: '📚', title: '知识库', desc: '1000+ 结构化金融知识条目，从入门到进阶体系化学习', path: '/knowledge', color: '#67c23a' },
+  { icon: '📊', title: '风险测评', desc: '科学问卷定位风险承受等级，认清适合自己的投资方式', path: '/assessment', color: '#e6a23c' },
+  { icon: '🎮', title: '模拟引导', desc: '在模拟场景中演练决策，零风险建立真实投资认知', path: '/simulation', color: '#409eff' },
+  { icon: '📝', title: '投资日记', desc: '记录每一次思考与决策，复盘沉淀为长期成长', path: '/diary', color: '#67c23a' }
 ]
 
 const steps = [
-  {
-    num: '01',
-    title: '学 · 懂市场',
-    desc: '深入知识库，系统学习股票、基金、债券的核心概念与底层逻辑，搭建完整的金融认知框架。',
-    color: '#409eff',
-  },
-  {
-    num: '02',
-    title: '测 · 知自己',
-    desc: '完成风险测评，明确自己的风险承受能力与投资偏好，找到真正适合自己的投资风格。',
-    color: '#e6a23c',
-  },
-  {
-    num: '03',
-    title: '练 · 验真知',
-    desc: '通过模拟引导与 AI 问答反复演练验证，在安全环境中把知识内化为自己的投资方法论。',
-    color: '#67c23a',
-  },
+  { num: '01', title: '学 · 懂市场', desc: '深入知识库，系统学习股票、基金、债券的核心概念与底层逻辑，搭建完整的金融认知框架。', color: '#409eff' },
+  { num: '02', title: '测 · 知自己', desc: '完成风险测评，明确自己的风险承受能力与投资偏好，找到真正适合自己的投资风格。', color: '#e6a23c' },
+  { num: '03', title: '练 · 验真知', desc: '通过模拟引导与 AI 问答反复演练验证，在安全环境中把知识内化为自己的投资方法论。', color: '#67c23a' }
 ]
 
 const SECTION_COUNT = 4
@@ -347,86 +264,52 @@ const onMouseMove = (e) => {
   my.value = e.clientY / window.innerHeight - 0.5
 }
 const parallax = (depth) => ({
-  transform: `translate3d(${mx.value * depth}px, ${my.value * depth}px, 0)`,
+  transform: `translate3d(${mx.value * depth}px, ${my.value * depth}px, 0)`
 })
 
 // ===== 数字滚动 =====
 const progress = ref(0)
 const display = (v) => Math.round(v * progress.value)
 
-// ===== 横向滚动 =====
+// ===== 纵向滚动 + 分区检测 =====
 const viewport = ref(null)
-const track = ref(null)
 const active = ref(0)
 const progressPct = ref(0)
-
-let target = 0
-let currentX = 0
-let maxScroll = 0
 let raf = null
+let ticking = false
 
-const clampTarget = () => {
-  if (!track.value || !viewport.value) return
-  maxScroll = Math.max(0, track.value.scrollWidth - viewport.value.clientWidth)
-  target = Math.max(0, Math.min(target, maxScroll))
-}
+const clampProgress = () => {
+  const el = viewport.value
+  if (!el) return
+  const maxScroll = el.scrollHeight - el.clientHeight
+  progressPct.value = maxScroll > 0 ? (el.scrollTop / maxScroll) * 100 : 0
 
-const loop = () => {
-  if (track.value) {
-    currentX += (target - currentX) * 0.075
-    if (Math.abs(target - currentX) < 0.1) currentX = target
-    track.value.style.transform = `translate3d(${-currentX}px, 0, 0)`
-
-    const stepW = SECTION_COUNT > 1 ? maxScroll / (SECTION_COUNT - 1) : 0
-    const idx = stepW > 0 ? Math.round(currentX / stepW) : 0
-    const clamped = Math.max(0, Math.min(SECTION_COUNT - 1, idx))
-    if (clamped !== active.value) active.value = clamped
-
-    progressPct.value = maxScroll > 0 ? (currentX / maxScroll) * 100 : 0
-  }
-  raf = requestAnimationFrame(loop)
+  // 计算当前活跃分区
+  const stepH = el.scrollHeight / SECTION_COUNT
+  const idx = Math.min(SECTION_COUNT - 1, Math.max(0, Math.round(el.scrollTop / stepH)))
+  if (idx !== active.value) active.value = idx
 }
 
 const goTo = (i) => {
-  clampTarget()
-  const stepW = SECTION_COUNT > 1 ? maxScroll / (SECTION_COUNT - 1) : 0
-  target = stepW * i
+  const el = viewport.value
+  if (!el) return
+  const stepH = el.scrollHeight / SECTION_COUNT
+  el.scrollTo({ top: stepH * i, behavior: 'smooth' })
+  // 等待动画结束后更新 active
+  setTimeout(() => clampProgress(), 500)
 }
 
-// 滚轮：纵向滚动 → 横向位移
-const onWheel = (e) => {
-  e.preventDefault()
-  const delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX
-  target += delta
-  clampTarget()
-}
-
-// 拖拽
-let dragging = false
-let dragStartX = 0
-let dragStartTarget = 0
-
-const onPointerDown = (e) => {
-  dragging = true
-  dragStartX = e.clientX
-  dragStartTarget = target
-  try {
-    viewport.value.setPointerCapture(e.pointerId)
-  } catch (_) {
-    /* ignore */
+const onScroll = () => {
+  if (!ticking) {
+    raf = requestAnimationFrame(() => {
+      clampProgress()
+      ticking = false
+    })
+    ticking = true
   }
 }
-const onPointerMove = (e) => {
-  if (!dragging) return
-  const dx = e.clientX - dragStartX
-  target = dragStartTarget - dx
-  clampTarget()
-}
-const onPointerUp = () => {
-  dragging = false
-}
 
-onMounted(() => {
+onMounted(async () => {
   // 数字滚动动画
   const start = performance.now()
   const duration = 1600
@@ -437,33 +320,21 @@ onMounted(() => {
   }
   requestAnimationFrame(tick)
 
-  // 横向滚动初始化
-  clampTarget()
-  raf = requestAnimationFrame(loop)
-  window.addEventListener('resize', clampTarget)
-
-  // 添加事件监听器
+  await nextTick()
   if (viewport.value) {
-    viewport.value.addEventListener('wheel', onWheel, { passive: false })
-    viewport.value.addEventListener('pointerdown', onPointerDown)
-    viewport.value.addEventListener('pointermove', onPointerMove)
-    viewport.value.addEventListener('pointerup', onPointerUp)
-    viewport.value.addEventListener('pointercancel', onPointerUp)
+    viewport.value.addEventListener('scroll', onScroll, { passive: true })
+    clampProgress()
   }
-
+  window.addEventListener('resize', clampProgress)
   window.addEventListener('mousemove', onMouseMove)
 })
 
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
   if (viewport.value) {
-    viewport.value.removeEventListener('wheel', onWheel)
-    viewport.value.removeEventListener('pointerdown', onPointerDown)
-    viewport.value.removeEventListener('pointermove', onPointerMove)
-    viewport.value.removeEventListener('pointerup', onPointerUp)
-    viewport.value.removeEventListener('pointercancel', onPointerUp)
+    viewport.value.removeEventListener('scroll', onScroll)
   }
-  window.removeEventListener('resize', clampTarget)
+  window.removeEventListener('resize', clampProgress)
   window.removeEventListener('mousemove', onMouseMove)
 })
 </script>
@@ -487,11 +358,7 @@ onBeforeUnmount(() => {
       linear-gradient(rgba(64, 158, 255, 0.06) 1px, transparent 1px),
       linear-gradient(90deg, rgba(64, 158, 255, 0.06) 1px, transparent 1px);
     background-size: 72px 72px;
-    mask-image: radial-gradient(
-      ellipse 90% 80% at 50% 40%,
-      #000 30%,
-      transparent 78%
-    );
+    mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 30%, transparent 78%);
     z-index: 0;
     pointer-events: none;
   }
@@ -517,11 +384,7 @@ onBeforeUnmount(() => {
     height: 560px;
     top: -180px;
     right: 4%;
-    background: radial-gradient(
-      circle,
-      rgba(64, 158, 255, 0.22),
-      transparent 65%
-    );
+    background: radial-gradient(circle, rgba(64, 158, 255, 0.22), transparent 65%);
     animation: drift 22s ease-in-out infinite alternate;
   }
 
@@ -530,11 +393,7 @@ onBeforeUnmount(() => {
     height: 640px;
     bottom: -280px;
     left: -160px;
-    background: radial-gradient(
-      circle,
-      rgba(103, 194, 58, 0.2),
-      transparent 65%
-    );
+    background: radial-gradient(circle, rgba(103, 194, 58, 0.20), transparent 65%);
     animation: drift 26s ease-in-out infinite alternate-reverse;
   }
 
@@ -543,11 +402,7 @@ onBeforeUnmount(() => {
     height: 320px;
     top: 42%;
     left: 44%;
-    background: radial-gradient(
-      circle,
-      rgba(230, 162, 60, 0.14),
-      transparent 65%
-    );
+    background: radial-gradient(circle, rgba(230, 162, 60, 0.14), transparent 65%);
     animation: drift 18s ease-in-out infinite alternate;
   }
 
@@ -556,31 +411,28 @@ onBeforeUnmount(() => {
     position: absolute;
     top: 0;
     left: 0;
-    height: 5px;
-    z-index: 100;
+    height: 3px;
+    z-index: 10;
     background: linear-gradient(90deg, #409eff, #67c23a, #e6a23c);
     border-radius: 0 3px 3px 0;
-    width: 0%; /* 初始宽度为0 */
   }
 
-  /* ===== 横向滚动视口 ===== */
-  .h-viewport {
+  /* ===== 纵向滚动视口（原生 overflow-y） ===== */
+  .v-viewport {
     position: relative;
     z-index: 2;
     flex: 1;
     min-height: 0;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
   }
 
-  .h-track {
-    display: flex;
+  .v-section {
     height: 100%;
-    will-change: transform;
-  }
-
-  .h-section {
-    flex: 0 0 100%;
-    height: 100%;
+    min-height: 100%;
+    scroll-snap-align: start;
     position: relative;
     z-index: 1;
   }
@@ -604,7 +456,7 @@ onBeforeUnmount(() => {
       transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s);
   }
 
-  .h-section.active .reveal {
+  .v-section.active .reveal {
     opacity: 1;
     transform: translateY(0);
   }
@@ -718,10 +570,6 @@ onBeforeUnmount(() => {
     .cta {
       display: flex;
       gap: 18px;
-
-      :deep(.el-button) {
-        cursor: pointer; /* 修复鼠标手型 */
-      }
     }
 
     .stats {
@@ -761,11 +609,7 @@ onBeforeUnmount(() => {
 
     .chat-card {
       width: 340px;
-      background: linear-gradient(
-        160deg,
-        rgba(255, 255, 255, 0.95),
-        rgba(255, 255, 255, 0.85)
-      );
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
       border: 1px solid rgba(64, 158, 255, 0.15);
       border-radius: 22px;
       box-shadow: 0 30px 80px rgba(64, 158, 255, 0.15);
@@ -1008,13 +852,8 @@ onBeforeUnmount(() => {
     .bento-main {
       grid-row: span 2;
       padding: 34px;
-      background: linear-gradient(
-        160deg,
-        rgba(255, 255, 255, 0.95),
-        color-mix(in srgb, var(--ac) 5%, white)
-      );
-      border: 1px solid
-        color-mix(in srgb, var(--ac) 30%, rgba(64, 158, 255, 0.12));
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), color-mix(in srgb, var(--ac) 5%, white));
+      border: 1px solid color-mix(in srgb, var(--ac) 30%, rgba(64, 158, 255, 0.12));
 
       .bento-icon {
         width: 64px;
@@ -1128,42 +967,39 @@ onBeforeUnmount(() => {
       display: flex;
       gap: 18px;
       justify-content: center;
-
-      :deep(.el-button) {
-        cursor: pointer; /* 修复鼠标手型 */
-      }
     }
   }
 
-  /* ===== 分区指示点 ===== */
-  .dots {
+  /* ===== 向下滚动箭头 ===== */
+  .scroll-arrow {
     position: absolute;
-    bottom: 18px;
+    bottom: 58px;
     left: 50%;
     transform: translateX(-50%);
-    display: flex;
-    gap: 10px;
     z-index: 6;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px;
 
-    span {
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: rgba(64, 158, 255, 0.3);
-      transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    .chevron {
+      display: block;
+      width: 18px;
+      height: 18px;
+      border-right: 2px solid rgba(64, 158, 255, 0.45);
+      border-bottom: 2px solid rgba(64, 158, 255, 0.45);
+      transform: rotate(45deg);
+      animation: chevron-fade 2s ease-in-out infinite;
 
-      &:hover {
-        background: rgba(64, 158, 255, 0.6);
+      &:nth-child(2) {
+        animation-delay: 0.3s;
       }
+    }
 
-      &.on {
-        width: 28px;
-        background: #409eff;
-
-        &:hover {
-          background: #409eff;
-        }
-      }
+    &:hover .chevron {
+      border-color: rgba(64, 158, 255, 0.85);
     }
   }
 
@@ -1214,8 +1050,7 @@ onBeforeUnmount(() => {
 
   /* ===== 动画定义 ===== */
   @keyframes bob {
-    0%,
-    100% {
+    0%, 100% {
       transform: translateY(0);
     }
     50% {
@@ -1224,8 +1059,7 @@ onBeforeUnmount(() => {
   }
 
   @keyframes drift {
-    0%,
-    100% {
+    0%, 100% {
       transform: translate(0, 0) scale(1);
     }
     50% {
@@ -1245,8 +1079,7 @@ onBeforeUnmount(() => {
   }
 
   @keyframes blink {
-    0%,
-    100% {
+    0%, 100% {
       opacity: 0.25;
       transform: translateY(0);
     }
@@ -1263,14 +1096,24 @@ onBeforeUnmount(() => {
   }
 
   @keyframes hint-slide {
-    0%,
-    100% {
+    0%, 100% {
       transform: translateX(0);
       opacity: 0.4;
     }
     50% {
       transform: translateX(8px);
       opacity: 1;
+    }
+  }
+
+  @keyframes chevron-fade {
+    0%, 100% {
+      opacity: 0.2;
+      transform: rotate(45deg) translateY(-3px);
+    }
+    50% {
+      opacity: 1;
+      transform: rotate(45deg) translateY(3px);
     }
   }
 
@@ -1314,7 +1157,6 @@ onBeforeUnmount(() => {
 
       .desc {
         font-size: 14px;
-
         br {
           display: none;
         }
@@ -1322,7 +1164,6 @@ onBeforeUnmount(() => {
 
       .cta {
         flex-direction: column;
-
         .el-button {
           justify-content: center;
         }
@@ -1351,7 +1192,6 @@ onBeforeUnmount(() => {
     .cta-inner .cta-buttons {
       flex-direction: column;
       width: 100%;
-
       .el-button {
         justify-content: center;
       }

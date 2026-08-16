@@ -23,18 +23,28 @@ public class DataInitializer implements CommandLineRunner {
     private VectorStoreService vectorStoreService;
 
     @Override
-    public void run(String... args) throws Exception {
-        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-        Resource[] resources = resolver.getResources("classpath:docs/*");
-        if (resources.length == 0) {
-            System.out.println("未找到知识文档，跳过导入");
-            return;
-        }
-        for (Resource res : resources) {
-            File file = res.getFile();
-            var segments = documentProcessor.loadAndSplit(file, Map.of("category", "finance_rules"));
-            vectorStoreService.ingest(segments);
-            System.out.println("已向量化入库: " + file.getName());
+    public void run(String... args) {
+        try {
+            PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+            Resource[] resources = resolver.getResources("classpath:docs/*");
+            if (resources.length == 0) {
+                System.out.println("未找到知识文档，跳过导入");
+                return;
+            }
+            for (Resource res : resources) {
+                try {
+                    File file = res.getFile();
+                    var segments = documentProcessor.loadAndSplit(file, Map.of("category", "finance_rules"));
+                    vectorStoreService.ingest(segments);
+                    System.out.println("已向量化入库: " + file.getName());
+                } catch (Exception ex) {
+                    // 单个文档入库失败不阻断应用启动（如 DashScope 免费额度用尽、向量库不可用等）
+                    System.err.println("知识文档向量化入库失败，跳过: " + res.getFilename() + " -> " + ex.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            // 文档初始化整体失败时仅告警，保证应用正常启动
+            System.err.println("知识文档初始化失败，应用仍将继续启动: " + e.getMessage());
         }
     }
 }

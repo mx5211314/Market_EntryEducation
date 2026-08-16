@@ -140,6 +140,10 @@ onMounted(loadProfile)
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-soft);
   padding: 24px;
+  margin-top: 0;
+}
+.page-card:not(:first-child) {
+  margin-top: 18px;
 }
 h2 {
   color: var(--text-dark);

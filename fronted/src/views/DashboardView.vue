@@ -80,6 +80,18 @@
       </el-col>
     </el-row>
 
+    <!-- 用户活跃度趋势图 -->
+    <el-row :gutter="20" class="charts-row">
+      <el-col :xs="24">
+        <el-card class="chart-card" shadow="hover">
+          <template #header>
+            <div class="card-header">用户活跃度趋势</div>
+          </template>
+          <div ref="activityChart" class="chart-box"></div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <el-row :gutter="20" class="charts-row">
       <el-col :xs="24" :md="12">
         <el-card class="chart-card" shadow="hover">
@@ -158,9 +170,11 @@ const stats = ref({})
 const trendChart = ref(null)
 const levelChart = ref(null)
 const sentimentChart = ref(null)
+const activityChart = ref(null)
 let trendInstance = null
 let levelInstance = null
 let sentimentInstance = null
+let activityInstance = null
 
 const loadStats = async () => {
   try {
@@ -294,12 +308,86 @@ const renderCharts = () => {
       }],
     })
   }
+
+  // 用户活跃度趋势
+  if (activityChart.value) {
+    if (activityInstance) activityInstance.dispose()
+    activityInstance = echarts.init(activityChart.value)
+    const activityData = s.userActivity || {}
+    const dates = Object.keys(activityData)
+    activityInstance.setOption({
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderColor: '#409eff',
+        borderWidth: 1,
+        textStyle: { color: '#2d3436' },
+      },
+      legend: {
+        data: ['活跃用户', '会话数量'],
+        top: 10,
+        textStyle: { color: '#636e72' },
+      },
+      grid: { left: '3%', right: '4%', top: '18%', bottom: '3%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: dates,
+        axisLine: { lineStyle: { color: '#b2bec3' } },
+        axisLabel: { color: '#636e72' },
+      },
+      yAxis: {
+        type: 'value',
+        minInterval: 1,
+        axisLine: { lineStyle: { color: '#b2bec3' } },
+        axisLabel: { color: '#636e72' },
+        splitLine: { lineStyle: { color: 'rgba(180, 180, 180, 0.2)' } },
+      },
+      series: [
+        {
+          name: '活跃用户',
+          type: 'line',
+          smooth: true,
+          data: dates.map((d) => activityData[d]?.activeUsers || 0),
+          smooth: true,
+          lineStyle: { width: 3, color: '#409eff' },
+          itemStyle: { color: '#409eff' },
+          areaStyle: {
+            color: {
+              type: 'linear',
+              x: 0, y: 0, x2: 0, y2: 1,
+              colorStops: [
+                { offset: 0, color: 'rgba(64, 158, 255, 0.3)' },
+                { offset: 1, color: 'rgba(64, 158, 255, 0.05)' },
+              ],
+            },
+          },
+        },
+        {
+          name: '会话数量',
+          type: 'bar',
+          data: dates.map((d) => activityData[d]?.sessionCount || 0),
+          itemStyle: {
+            color: {
+              type: 'linear',
+              x: 0, y: 0, x2: 0, y2: 1,
+              colorStops: [
+                { offset: 0, color: '#67c23a' },
+                { offset: 1, color: '#85ce61' },
+              ],
+            },
+          },
+          barWidth: '30%',
+        },
+      ],
+    })
+  }
 }
 
 const handleResize = () => {
   trendInstance?.resize()
   levelInstance?.resize()
   sentimentInstance?.resize()
+  activityInstance?.resize()
 }
 
 onMounted(() => {
@@ -312,6 +400,7 @@ onBeforeUnmount(() => {
   trendInstance?.dispose()
   levelInstance?.dispose()
   sentimentInstance?.dispose()
+  activityInstance?.dispose()
 })
 </script>
 
