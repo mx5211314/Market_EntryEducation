@@ -5,7 +5,7 @@ import router from '@/router'
 // 创建axios实例
 const service = axios.create({
   baseURL: '/api', // 请求的前缀
-  timeout: 5000, // 请求的超时时间
+  timeout: 60000, // 请求的超时时间（AI 分析接口耗时较长）
 })
 
 // 请求拦截器

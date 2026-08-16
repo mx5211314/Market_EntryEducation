@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/wechat/auth-url", "/api/wechat/callback").permitAll()
                         .requestMatchers("/api/oauth/github/login-url", "/api/oauth/github/callback").permitAll()
+                        .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/user/article/**").permitAll()
                         .requestMatchers("/api/chat/**").authenticated()
                         .requestMatchers("/api/user/**").authenticated()

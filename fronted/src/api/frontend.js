@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import publicRequest from '@/utils/publicRequest'
 
 // 用户相关接口
 export const login = (data) => {
@@ -46,11 +47,15 @@ export const getSessionEmotion = (sessionId) => {
   return request.get(`/chat/analyze-session/${sessionId}`)
 }
 
-// 文章相关接口
+// 文章相关接口 - 使用公开请求（无需登录）
 export const getKnowledgeList = (params) => {
-  return request.get('/user/article/list', { params })
+  return publicRequest.get('/user/article/list', { params })
 }
 
 export const getKnowledgeDetail = (articleId) => {
-  return request.get(`/user/article/${articleId}`)
+  return publicRequest.get(`/user/article/${articleId}`)
+}
+
+export const getRecommendList = (params) => {
+  return publicRequest.get('/user/article/list', { params })
 }
