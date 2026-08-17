@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { useSuitabilityStore } from '../stores/suitability'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import AuthLayout from '../layouts/AuthLayout.vue'
@@ -20,7 +22,6 @@ const ProfileView = () => import('../views/ProfileView.vue')
 const DashboardView = () => import('../views/DashboardView.vue')
 const AdminUserView = () => import('../views/AdminUserView.vue')
 const AdminArticleView = () => import('../views/AdminArticleView.vue')
-const FileManageView = () => import('../views/FileManageView.vue')
 
 const routes = [
   {
@@ -37,11 +38,10 @@ const routes = [
     children: [
       { path: '', component: HomeView, meta: { title: '首页', public: true } },
       { path: 'chat', component: ChatView, meta: { title: '智能问答' } },
-      { path: 'knowledge', component: KnowledgeView, meta: { title: '知识库', public: true }, children: [
-          { path: ':id', component: ArticleDetailView, meta: { title: '文章详情', public: true }, props: true },
-      ] },
+      { path: 'knowledge', component: KnowledgeView, meta: { title: '知识库', public: true } },
+      { path: 'knowledge/:id', component: ArticleDetailView, meta: { title: '文章详情', public: true }, props: true },
       { path: 'assessment', component: RiskAssessmentView, meta: { title: '风险测评' } },
-      { path: 'simulation', component: SimTradeView, meta: { title: '模拟引导' } },
+      { path: 'simulation', component: SimTradeView, meta: { title: '模拟引导', requireAssessment: true } },
       { path: 'diary', component: DiaryView, meta: { title: '投资日记' } },
       { path: 'favorites', component: FavoritesView, meta: { title: '我的收藏' } },
       { path: 'profile', component: ProfileView, meta: { title: '个人中心' } },
@@ -56,7 +56,6 @@ const routes = [
       { path: 'dashboard', component: DashboardView, meta: { title: '数据看板' } },
       { path: 'users', component: AdminUserView, meta: { title: '用户管理' } },
       { path: 'articles', component: AdminArticleView, meta: { title: '文章管理' } },
-      { path: 'files', component: FileManageView, meta: { title: '文件管理' } },
     ]
   },
   { path: '/:pathMatch(.*)*', redirect: '/' }
@@ -67,7 +66,7 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const token = sessionStorage.getItem('token')
   const role = sessionStorage.getItem('role') || 'USER'
 
@@ -111,6 +110,19 @@ router.beforeEach((to, from, next) => {
     sessionStorage.setItem('redirect', to.path)
     next('/auth/login')
     return
+  }
+
+  // 适当性前置校验：模拟配置涉及产品风险等级匹配，没测评或测评过期都不能进
+  if (to.meta.requireAssessment && token) {
+    const suitability = useSuitabilityStore()
+    await suitability.load()
+    if (suitability.needsAssessment) {
+      ElMessage.warning(suitability.expired
+        ? '风险测评已过期，请重新测评后再进行模拟配置'
+        : '请先完成风险测评，再开始模拟配置')
+      next('/assessment')
+      return
+    }
   }
 
   next()

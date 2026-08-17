@@ -82,14 +82,14 @@ public class GithubOAuthController {
             String jwt = jwtUtil.generateToken(user.getUsername());
 
             // 5. 重定向到前端
-            String frontendUrl = "http://localhost:5173/login?token=" + jwt
+            String frontendUrl = "http://localhost:5173/auth/login?token=" + jwt
                     + "&username=" + user.getUsername()
                     + "&nickname=" + (user.getNickname() == null ? "" : user.getNickname())
                     + "&role=" + user.getRole();
             return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(frontendUrl)).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create("http://localhost:5173/login?error=github_login_failed"))
+                    .location(URI.create("http://localhost:5173/auth/login?error=github_login_failed"))
                     .build();
         }
     }

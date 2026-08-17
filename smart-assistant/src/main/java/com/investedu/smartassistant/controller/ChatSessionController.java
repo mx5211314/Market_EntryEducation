@@ -63,6 +63,16 @@ public class ChatSessionController {
         return Map.of("message", "删除成功");
     }
 
+    // 重命名会话
+    @PutMapping("/{sessionId}/title")
+    public Map<String, String> renameSession(@RequestHeader("Authorization") String authHeader,
+                                             @PathVariable String sessionId,
+                                             @RequestBody Map<String, String> body) {
+        User user = getCurrentUser(authHeader);
+        boolean ok = sessionService.renameSession(user.getId(), sessionId, body.get("title"));
+        return Map.of("message", ok ? "重命名成功" : "重命名失败");
+    }
+
     private User getCurrentUser(String authHeader) {
         String token = authHeader.replace("Bearer ", "");
         String username = jwtUtil.getUsernameFromToken(token);

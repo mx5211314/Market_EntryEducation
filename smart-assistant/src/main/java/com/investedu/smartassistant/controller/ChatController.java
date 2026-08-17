@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.investedu.smartassistant.agent.InvestmentAgent;
 import com.investedu.smartassistant.entity.ChatMessage;
 import com.investedu.smartassistant.entity.ChatSession;
+import com.investedu.smartassistant.entity.RiskAssessment;
 import com.investedu.smartassistant.entity.User;
 import com.investedu.smartassistant.retriever.HybridRetriever;
 import com.investedu.smartassistant.service.ChatMessageService;
 import com.investedu.smartassistant.service.ChatSessionService;
 import com.investedu.smartassistant.service.QueryRewriter;
 import com.investedu.smartassistant.service.ResponseValidator;
+import com.investedu.smartassistant.service.RiskAssessmentService;
 import com.investedu.smartassistant.service.UserService;
 import com.investedu.smartassistant.util.JwtUtil;
 import dev.langchain4j.data.segment.TextSegment;
@@ -58,6 +60,9 @@ public class ChatController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private RiskAssessmentService riskAssessmentService;
 
     @Value("${langchain4j.open-ai.chat-model.api-key}")
     private String apiKey;
@@ -152,13 +157,14 @@ public class ChatController {
 
         // 意图重写与回答生成
         String rewritten = queryRewriter.rewrite(userMessage);
+        String riskProfile = riskProfilePrompt(userId);
         String reply;
         if (QueryRewriter.isChat(rewritten)) {
-            reply = chatWithHistory(history, userMessage);
+            reply = chatWithHistory(history, userMessage, riskProfile);
         } else {
             List<TextSegment> relevant = hybridRetriever.retrieve(rewritten, 4);
             String context = relevant.stream().map(TextSegment::text).collect(Collectors.joining("\n\n"));
-            reply = responseValidator.generateWithValidation(buildFinancePrompt(context, userMessage, history), 2);
+            reply = responseValidator.generateWithValidation(buildFinancePrompt(context, userMessage, history, riskProfile), 2);
         }
 
         // 保存助手消息
@@ -216,6 +222,7 @@ public class ChatController {
         final Long finalUserId = userId;
         final String finalUserMessage = userMessage;
         final List<Map<String, String>> finalHistory = history;
+        final String finalRiskProfile = riskProfilePrompt(userId);
 
         CompletableFuture.runAsync(() -> {
             try {
@@ -223,7 +230,7 @@ public class ChatController {
 
                 // 闲聊：直接生成并一次性发送
                 if (QueryRewriter.isChat(rewritten)) {
-                    String reply = chatWithHistory(finalHistory, finalUserMessage);
+                    String reply = chatWithHistory(finalHistory, finalUserMessage, finalRiskProfile);
                     chatMessageService.saveMessage(finalSessionId, finalUserId, "assistant", reply);
                     sendSingleSseEvent(emitter, reply);
                     return;
@@ -234,7 +241,7 @@ public class ChatController {
                 String context = relevant.stream().map(TextSegment::text).collect(Collectors.joining("\n\n"));
 
                 List<Map<String, Object>> messages = new ArrayList<>();
-                messages.add(Map.of("role", "system", "content", SYSTEM_PROMPT));
+                messages.add(Map.of("role", "system", "content", SYSTEM_PROMPT + finalRiskProfile));
                 for (Map<String, String> msg : finalHistory) {
                     messages.add(Map.of("role", msg.get("role"), "content", msg.get("content")));
                 }
@@ -326,9 +333,9 @@ public class ChatController {
         }
     }
 
-    private String buildFinancePrompt(String context, String currentMsg, List<Map<String, String>> history) {
+    private String buildFinancePrompt(String context, String currentMsg, List<Map<String, String>> history, String riskProfile) {
         StringBuilder sb = new StringBuilder();
-        sb.append(SYSTEM_PROMPT).append("\n\n");
+        sb.append(SYSTEM_PROMPT).append(riskProfile).append("\n\n");
         sb.append("历史对话：\n");
         for (Map<String, String> msg : history) {
             sb.append(msg.get("role")).append(": ").append(msg.get("content")).append("\n");
@@ -339,13 +346,31 @@ public class ChatController {
         return sb.toString();
     }
 
-    private String chatWithHistory(List<Map<String, String>> history, String currentMsg) {
+    private String chatWithHistory(List<Map<String, String>> history, String currentMsg, String riskProfile) {
         StringBuilder sb = new StringBuilder();
-        sb.append(SYSTEM_PROMPT).append("\n\n");
+        sb.append(SYSTEM_PROMPT).append(riskProfile).append("\n\n");
         for (Map<String, String> msg : history) {
             sb.append(msg.get("role")).append(": ").append(msg.get("content")).append("\n");
         }
         sb.append("user: ").append(currentMsg).append("\nassistant: ");
         return chatLanguageModel.generate(sb.toString()).trim();
+    }
+
+    /**
+     * 把用户最近一次风险测评结果拼进系统提示，让建议贴合其风险承受能力。
+     * 没测过就返回空串，不影响原有回答。
+     */
+    private String riskProfilePrompt(Long userId) {
+        try {
+            RiskAssessment latest = riskAssessmentService.getLatest(userId);
+            if (latest == null || latest.getLevel() == null) return "";
+            RiskAssessmentService.LevelInfo info = riskAssessmentService.levelByName(latest.getLevel());
+            return "\n\n【用户风险画像】该用户最近一次风险测评结果为「" + info.name + "」（" + info.code
+                    + "，可承受产品风险等级不高于 R" + info.index + "）。" + info.summary
+                    + "\n给出投资相关建议时必须贴合这一等级，不要推荐超出其承受能力的品种；"
+                    + "若用户主动询问更高风险的业务，先说明其超出测评等级再作解释。";
+        } catch (Exception e) {
+            return "";
+        }
     }
 }

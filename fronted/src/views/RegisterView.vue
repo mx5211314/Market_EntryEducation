@@ -1,42 +1,63 @@
 <template>
-    <div class="container">
-        <div class="title">
-            <div class="back-home" @click="router.push('/')">
-                <el-icon><ArrowLeft /></el-icon>
-                <span>返回首页</span>
-            </div>
-            <div class="title-text">
-                <h2>创建您的账户</h2>
-                <p>请填写注册信息</p>
-            </div>
+    <div class="auth-panel">
+        <div class="back-home" @click="router.push('/')">
+            <el-icon><ArrowLeft /></el-icon>
+            <span>返回首页</span>
         </div>
-        <div class="form-container">
-            <el-form label-position="top" :model="formData" :rules="rules" ref="submitFormRef">
-                <el-form-item label="用户名" prop="username">
-                    <el-input v-model="formData.username" placeholder="请输入用户名" size="large" />
-                </el-form-item>
-                <el-form-item label="邮箱" prop="email">
-                    <el-input v-model="formData.email" placeholder="请输入邮箱" size="large" />
-                </el-form-item>
-                <el-form-item label="昵称" prop="nickname">
-                    <el-input v-model="formData.nickname" placeholder="请输入昵称(可选)" size="large" />
-                </el-form-item>
-                <el-form-item label="手机号" prop="phone">
-                    <el-input v-model="formData.phone" placeholder="请输入手机号(可选)" size="large" />
-                </el-form-item>
-                <el-form-item label="密码" prop="password">
-                    <el-input v-model="formData.password" placeholder="请输入密码" size="large" type="password" show-password />
-                </el-form-item>
-                <el-form-item label="确认密码" prop="confirmPassword">
-                    <el-input v-model="formData.confirmPassword" placeholder="请再次输入密码" size="large" type="password" show-password />
-                </el-form-item>
-                <el-button class="btn" type="primary" size="large" @click="submitForm(submitFormRef)" :loading="loading">
-                    {{ loading ? '注册中...' : '注册' }}
-                </el-button>
-            </el-form>
-            <div class="footer">
-                <p>已有账户？<router-link to="/login">去登录</router-link></p>
-            </div>
+
+        <div class="panel-head">
+            <h2>创建账户</h2>
+            <p>只需用户名和密码，30 秒完成注册</p>
+        </div>
+
+        <el-form
+            ref="submitFormRef"
+            :model="formData"
+            :rules="rules"
+            label-position="top"
+            class="auth-form"
+            @submit.prevent="submitForm(submitFormRef)">
+            <el-form-item label="用户名" prop="username">
+                <el-input
+                    v-model="formData.username"
+                    size="large"
+                    placeholder="3-20 个字符，登录时使用"
+                    :prefix-icon="User"
+                    @keyup.enter="submitForm(submitFormRef)" />
+            </el-form-item>
+            <el-form-item label="密码" prop="password">
+                <el-input
+                    v-model="formData.password"
+                    size="large"
+                    type="password"
+                    placeholder="6-20 个字符"
+                    :prefix-icon="Lock"
+                    show-password
+                    @keyup.enter="submitForm(submitFormRef)" />
+            </el-form-item>
+            <el-form-item label="确认密码" prop="confirmPassword">
+                <el-input
+                    v-model="formData.confirmPassword"
+                    size="large"
+                    type="password"
+                    placeholder="请再次输入密码"
+                    :prefix-icon="Lock"
+                    show-password
+                    @keyup.enter="submitForm(submitFormRef)" />
+            </el-form-item>
+
+            <el-button
+                class="submit-btn"
+                size="large"
+                type="primary"
+                native-type="submit"
+                :loading="loading">
+                {{ loading ? '注册中...' : '注册' }}
+            </el-button>
+        </el-form>
+
+        <div class="panel-foot">
+            已有账户？<router-link to="/auth/login">去登录</router-link>
         </div>
     </div>
 </template>
@@ -45,7 +66,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, User, Lock } from '@element-plus/icons-vue'
 import { register } from '@/api/auth'
 
 const router = useRouter()
@@ -53,14 +74,9 @@ const submitFormRef = ref()
 const loading = ref(false)
 
 const formData = reactive({
-    username: "",
-    email: "",
-    nickname: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-    gender: 0,
-    userType: 1
+    username: '',
+    password: '',
+    confirmPassword: ''
 })
 
 const validatePass2 = (rule, value, callback) => {
@@ -75,111 +91,127 @@ const validatePass2 = (rule, value, callback) => {
 
 const rules = reactive({
     username: [
-        { required: true, message: "请输入用户名", trigger: "blur" },
+        { required: true, message: '请输入用户名', trigger: 'blur' },
         { min: 3, max: 20, message: '长度在 3 到 20 个字符', trigger: 'blur' }
     ],
-    email: [
-        { required: true, message: "请输入邮箱", trigger: "blur" },
-        { type: 'email', message: '请输入正确的邮箱地址', trigger: ['blur', 'change'] }
-    ],
     password: [
-        { required: true, message: "请输入密码", trigger: "blur" },
+        { required: true, message: '请输入密码', trigger: 'blur' },
         { min: 6, max: 20, message: '长度在 6 到 20 个字符', trigger: 'blur' }
     ],
     confirmPassword: [
-        { required: true, message: "请再次输入密码", trigger: "blur" },
+        { required: true, message: '请再次输入密码', trigger: 'blur' },
         { validator: validatePass2, trigger: 'blur' }
     ]
 })
 
 const submitForm = async (formEl) => {
-    if (!formEl) return
+    if (!formEl || loading.value) return
+    try {
+        await formEl.validate()
+    } catch {
+        return
+    }
 
-    await formEl.validate(async (valid) => {
-        if (valid) {
-            loading.value = true
-            try {
-                const res = await register(formData)
-                ElMessage.success('注册成功')
-                // 注册成功后跳转到登录页
-                router.push('/login')
-            } catch (error) {
-                console.error('注册失败:', error)
-            } finally {
-                loading.value = false
-            }
-        }
-    })
+    loading.value = true
+    try {
+        // 昵称留空时后端会用用户名兜底，这里不再让用户多填一格
+        await register({ username: formData.username, password: formData.password })
+        ElMessage.success('注册成功，请登录')
+        router.push('/auth/login')
+    } catch (error) {
+        console.error('注册失败:', error)
+        ElMessage.error(error?.response?.data?.message || '注册失败，用户名可能已被占用')
+    } finally {
+        loading.value = false
+    }
 }
 </script>
 
 <style scoped lang="scss">
-.container {
-    width: 384px;
-    margin: 0 auto;
-    padding: 20px 0;
+$brand: #409eff;
 
-    .title {
-        .back-home {
-            margin-bottom: 60px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #409eff;
-            cursor: pointer;
-            font-size: 14px;
+.auth-panel {
+    width: 400px;
+    padding: 8px 0;
+}
 
-            .el-icon {
-                font-size: 16px;
-            }
+.back-home {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 32px;
+    font-size: 13px;
+    color: $brand;
+    cursor: pointer;
+    transition: color 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 
-            &:hover {
-                color: #66b1ff;
-            }
-        }
+    &:hover { color: #66b1ff; }
+}
 
-        .title-text {
-            text-align: center;
-            h2 {
-                font-size: 36px;
-                margin-bottom: 10px;
-                color: #303133;
-            }
-            p {
-                font-size: 18px;
-                color: #909399;
-            }
-        }
+.panel-head {
+    margin-bottom: 28px;
+
+    h2 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        font-weight: 800;
+        color: #333;
     }
 
-    .form-container {
-        margin-top: 30px;
+    p {
+        margin: 0;
+        font-size: 14px;
+        color: #999;
+    }
+}
 
-        .btn {
-            margin-top: 40px;
-            width: 100%;
-            height: 44px;
-            font-size: 16px;
-        }
+.auth-form {
+    :deep(.el-form-item) { margin-bottom: 20px; }
 
-        .footer {
-            padding: 30px 0;
-            text-align: center;
+    :deep(.el-form-item__label) {
+        font-size: 13px;
+        color: #666;
+        padding-bottom: 6px;
+    }
 
-            p {
-                color: #606266;
-                font-size: 14px;
+    :deep(.el-input__wrapper) {
+        border-radius: 10px;
+        box-shadow: 0 0 0 1px rgba(64, 158, 255, 0.2) inset;
 
-                a {
-                    color: #409eff;
-                    text-decoration: none;
+        &.is-focus { box-shadow: 0 0 0 1px $brand inset; }
+    }
+}
 
-                    &:hover {
-                        color: #66b1ff;
-                    }
-                }
-            }
-        }
+.submit-btn {
+    width: 100%;
+    height: 46px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    background: linear-gradient(135deg, $brand, #66b1ff);
+    box-shadow: 0 4px 16px rgba(64, 158, 255, 0.25);
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+
+    &:hover:not(.is-loading) {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 22px rgba(64, 158, 255, 0.32);
+    }
+}
+
+.panel-foot {
+    margin-top: 26px;
+    text-align: center;
+    font-size: 13px;
+    color: #666;
+
+    a {
+        color: $brand;
+        font-weight: 600;
+        text-decoration: none;
+
+        &:hover { color: #66b1ff; }
     }
 }
 </style>

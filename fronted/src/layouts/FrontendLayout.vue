@@ -16,7 +16,14 @@
             <el-menu-item index="/">首页</el-menu-item>
             <el-menu-item index="/chat">智能问答</el-menu-item>
             <el-menu-item index="/knowledge">知识库</el-menu-item>
-            <el-menu-item index="/assessment">风险测评</el-menu-item>
+            <el-menu-item index="/assessment">
+              风险测评
+              <!-- 模拟引导要靠这个等级做适当性匹配，没测或过期先在导航上提示 -->
+              <span
+                class="need-dot"
+                v-if="isLoggedIn && suitability.needsAssessment"
+                :title="suitability.expired ? '风险测评已过期，建议重新测评' : '还没有完成风险测评'"></span>
+            </el-menu-item>
             <el-menu-item index="/simulation">模拟引导</el-menu-item>
             <el-menu-item index="/diary">投资日记</el-menu-item>
           </el-menu>
@@ -38,7 +45,7 @@
         </div>
       </el-header>
 
-      <el-main :class="{ 'no-pad': $route.path === '/' || $route.path === '/chat' }">
+      <el-main :class="{ 'no-pad': isFullBleed }">
         <router-view />
       </el-main>
     </el-container>
@@ -46,14 +53,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { Monitor } from '@element-plus/icons-vue'
+import { useSuitabilityStore } from '@/stores/suitability'
 
 const router = useRouter()
 const route = useRoute()
+const suitability = useSuitabilityStore()
 const nickname = ref('用户')
+
+// 这几个页面自己控制内边距和背景，el-main 再套一层灰底会显得没铺满浏览器
+const isFullBleed = computed(() =>
+  route.path === '/' || route.path === '/chat' || route.path.startsWith('/knowledge')
+)
 
 const isLoggedIn = ref(false)
 
@@ -65,9 +79,11 @@ const updateUserInfo = () => {
     isLoggedIn.value = true
     const user = JSON.parse(userInfo)
     nickname.value = user.nickname || user.username || '用户'
+    suitability.load()
   } else {
     isLoggedIn.value = false
     nickname.value = '用户'
+    suitability.reset()
   }
 }
 
@@ -144,6 +160,16 @@ const handleCommand = (command) => {
         justify-content: center;
         border-bottom: none;
         flex: 1;
+
+        .need-dot {
+          width: 6px;
+          height: 6px;
+          margin-left: 5px;
+          border-radius: 50%;
+          background: #f56c6c;
+          align-self: flex-start;
+          margin-top: 18px;
+        }
       }
 
       .user-actions {

@@ -9,6 +9,7 @@ import com.investedu.smartassistant.util.JwtUtil;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -30,8 +31,16 @@ public class ArticleController {
     public Page<Article> listPublished(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) String category) {
-        return articleService.listPublished(pageNum, pageSize, category);
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String sortField,
+            @RequestParam(required = false) String sortDirection) {
+        return articleService.listPublished(pageNum, pageSize, category, keyword, sortField, sortDirection);
+    }
+
+    @GetMapping("/user/article/categories")
+    public List<String> listCategories() {
+        return articleService.listCategories();
     }
 
     @GetMapping("/user/article/{id}")
@@ -40,33 +49,25 @@ public class ArticleController {
         if (article == null || article.getStatus() != 1) {
             throw new RuntimeException("文章不存在或未发布");
         }
+        articleService.increaseReadCount(id);
+        article.setReadCount(article.getReadCount() == null ? 1 : article.getReadCount() + 1);
         return article;
     }
 
     // ==================== 管理端接口（需要管理员权限） ====================
     @PostMapping("/admin/article")
     public Article create(@RequestHeader("Authorization") String authHeader,
-                          @RequestBody Map<String, String> body) {
+                          @RequestBody Article body) {
         checkAdmin(authHeader);
-        return articleService.createArticle(
-                body.get("title"),
-                body.get("category"),
-                body.get("content"),
-                body.getOrDefault("author", "")
-        );
+        return articleService.createArticle(body);
     }
 
     @PutMapping("/admin/article/{id}")
     public Article update(@RequestHeader("Authorization") String authHeader,
                           @PathVariable Long id,
-                          @RequestBody Map<String, String> body) {
+                          @RequestBody Article body) {
         checkAdmin(authHeader);
-        return articleService.updateArticle(id,
-                body.get("title"),
-                body.get("category"),
-                body.get("content"),
-                body.get("author")
-        );
+        return articleService.updateArticle(id, body);
     }
 
     @PutMapping("/admin/article/{id}/status")
@@ -90,9 +91,10 @@ public class ArticleController {
     public Page<Article> listAll(@RequestHeader("Authorization") String authHeader,
                                  @RequestParam(defaultValue = "1") int pageNum,
                                  @RequestParam(defaultValue = "10") int pageSize,
-                                 @RequestParam(required = false) String keyword) {
+                                 @RequestParam(required = false) String keyword,
+                                 @RequestParam(required = false) Integer status) {
         checkAdmin(authHeader);
-        return articleService.listAll(pageNum, pageSize, keyword);
+        return articleService.listAll(pageNum, Math.min(pageSize, 100), keyword, status);
     }
 
     private void checkAdmin(String authHeader) {

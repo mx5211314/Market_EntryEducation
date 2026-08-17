@@ -1,27 +1,24 @@
 import request from '@/utils/request'
 
-// 管理员用户相关接口
-export const adminLogin = (data) => {
-  return request.post('/admin/login', data)
-}
+// 数据看板
+export const getDashboardStats = () => request.get('/admin/dashboard/stats')
 
-export const getUserList = (params) => {
-  return request.get('/admin/users', { params })
-}
+// 用户管理
+export const getAdminUserList = (params) => request.get('/admin/user/list', { params })
 
-export const deleteUser = (userId) => {
-  return request.delete(`/admin/users/${userId}`)
-}
+export const updateUserRole = (userId, role) => request.put(`/admin/user/${userId}/role`, { role })
 
-// 文章管理接口
-export const getArticleList = (params) => {
-  return request.get('/admin/articles', { params })
-}
+export const updateUserStatus = (userId, status) => request.put(`/admin/user/${userId}/status`, { status })
 
-export const deleteArticle = (articleId) => {
-  return request.delete(`/admin/articles/${articleId}`)
-}
+export const deleteUser = (userId) => request.delete(`/admin/user/${userId}`)
 
-export const updateArticle = (articleId, data) => {
-  return request.put(`/admin/articles/${articleId}`, data)
-}
+// 文章管理
+export const getAdminArticleList = (params) => request.get('/admin/article/list', { params })
+
+export const createArticle = (data) => request.post('/admin/article', data)
+
+export const updateArticle = (id, data) => request.put(`/admin/article/${id}`, data)
+
+export const updateArticleStatus = (id, status) => request.put(`/admin/article/${id}/status`, { status })
+
+export const deleteArticle = (id) => request.delete(`/admin/article/${id}`)

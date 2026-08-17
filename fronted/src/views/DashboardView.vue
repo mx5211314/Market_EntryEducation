@@ -1,149 +1,98 @@
 <template>
   <div class="dashboard-page">
-    <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stat-cards">
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="hover">
-          <div class="card-content">
-            <div class="icon-box users">
-              <span class="icon">👥</span>
-            </div>
-            <div class="info">
-              <div class="label">总用户数</div>
-              <div class="value">{{ stats.totalUsers || 0 }}</div>
-              <div class="sub">今日新增：{{ stats.todayUsers || 0 }}</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="hover">
-          <div class="card-content">
-            <div class="icon-box messages">
-              <span class="icon">💬</span>
-            </div>
-            <div class="info">
-              <div class="label">问答消息</div>
-              <div class="value">{{ stats.totalMessages || 0 }}</div>
-              <div class="sub">今日：{{ stats.todayMessages || 0 }}</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="hover">
-          <div class="card-content">
-            <div class="icon-box sessions">
-              <span class="icon">💼</span>
-            </div>
-            <div class="info">
-              <div class="label">会话总数</div>
-              <div class="value">{{ stats.totalSessions || 0 }}</div>
-              <div class="sub">活跃会话：{{ stats.activeSessions || 0 }}</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="hover">
-          <div class="card-content">
-            <div class="icon-box articles">
-              <span class="icon">📚</span>
-            </div>
-            <div class="info">
-              <div class="label">文章总数</div>
-              <div class="value">{{ stats.totalArticles || 0 }}</div>
-              <div class="sub">已发布：{{ stats.publishedArticles || 0 }}</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="hover">
-          <div class="card-content">
-            <div class="icon-box assessments">
-              <span class="icon">📊</span>
-            </div>
-            <div class="info">
-              <div class="label">风险测评</div>
-              <div class="value">{{ stats.totalAssessments || 0 }}</div>
-              <div class="sub">活跃用户：{{ stats.activeUsers || 0 }}</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="page-head">
+      <div class="head-left">
+        <h2>数据看板</h2>
+        <span class="head-note">
+          趋势类指标统计近 7 天{{ updatedAt ? '，数据更新于 ' + updatedAt : '' }}
+        </span>
+      </div>
+      <el-button :loading="loading" @click="loadStats">刷新数据</el-button>
+    </div>
 
-    <!-- 图表区 -->
-    <el-row :gutter="20" class="charts-row">
-      <el-col :xs="24" :md="14">
-        <el-card class="chart-card" shadow="hover">
-          <template #header>
-            <div class="card-header">近 7 天问答趋势</div>
-          </template>
-          <div ref="trendChart" class="chart-box"></div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :md="10">
-        <el-card class="chart-card" shadow="hover">
-          <template #header>
-            <div class="card-header">风险测评等级分布</div>
-          </template>
-          <div ref="levelChart" class="chart-box"></div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="kpi-grid" v-loading="loading">
+      <div class="kpi" v-for="k in kpis" :key="k.label">
+        <div class="kpi-icon" :class="k.tone">
+          <el-icon><component :is="k.icon" /></el-icon>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-label">{{ k.label }}</span>
+          <b class="kpi-value">{{ k.value }}</b>
+          <span class="kpi-sub">{{ k.sub }}</span>
+        </div>
+      </div>
+    </div>
 
-    <!-- 用户活跃度趋势图 -->
-    <el-row :gutter="20" class="charts-row">
-      <el-col :xs="24">
-        <el-card class="chart-card" shadow="hover">
-          <template #header>
-            <div class="card-header">用户活跃度趋势</div>
-          </template>
-          <div ref="activityChart" class="chart-box"></div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="grid-2 uneven">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>近 7 天问答趋势</h3>
+          <span>每天的问答消息条数</span>
+        </div>
+        <div ref="trendChart" class="chart-box"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h3>风险测评等级分布</h3>
+          <span>累计 {{ stats.totalAssessments || 0 }} 份</span>
+        </div>
+        <div ref="levelChart" class="chart-box"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h3>近 7 天平台活跃度</h3>
+        <span>活跃用户按当天真实发过问的人数去重统计</span>
+      </div>
+      <div ref="activityChart" class="chart-box tall"></div>
+    </div>
 
-    <el-row :gutter="20" class="charts-row">
-      <el-col :xs="24" :md="12">
-        <el-card class="chart-card" shadow="hover">
-          <template #header>
-            <div class="card-header">投资日记情绪分布</div>
-          </template>
-          <div ref="sentimentChart" class="chart-box"></div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :md="12">
-        <el-card class="chart-card" shadow="hover">
-          <template #header>
-            <div class="card-header">用户构成</div>
-          </template>
-          <div class="user-compose">
-            <div class="user-block">
-              <div class="user-num">{{ stats.adminUsers || 0 }}</div>
-              <div class="user-label">管理员</div>
-              <div class="user-bar admin"></div>
-            </div>
-            <div class="user-block">
-              <div class="user-num">{{ stats.normalUsers || 0 }}</div>
-              <div class="user-label">普通用户</div>
-              <div class="user-bar normal"></div>
-            </div>
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>投资日记情绪分布</h3>
+          <span>累计 {{ stats.totalDiaries || 0 }} 篇，今日新增 {{ stats.todayNewDiaries || 0 }} 篇</span>
+        </div>
+        <div ref="sentimentChart" class="chart-box"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h3>用户构成</h3>
+          <span>共 {{ stats.totalUsers || 0 }} 个账号</span>
+        </div>
+        <div class="user-compose">
+          <div class="user-block">
+            <b>{{ stats.adminUsers || 0 }}</b>
+            <span>管理员</span>
+            <i class="user-bar admin" />
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
+          <div class="user-block">
+            <b>{{ stats.normalUsers || 0 }}</b>
+            <span>普通用户</span>
+            <i class="user-bar normal" />
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
-
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import axios from 'axios'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
+import { User, TrendCharts, ChatDotRound, Document, DataAnalysis } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import { getDashboardStats } from '@/api/admin'
+
+// 全站统一配色，图表不再用另一套紫粉色
+const BLUE = '#409eff'
+const GREEN = '#67c23a'
+const ORANGE = '#e6a23c'
+const RED = '#f56c6c'
+const GREY = '#909399'
 
 const stats = ref({})
+const loading = ref(false)
+const updatedAt = ref('')
 const trendChart = ref(null)
 const levelChart = ref(null)
 const sentimentChart = ref(null)
@@ -153,237 +102,163 @@ let levelInstance = null
 let sentimentInstance = null
 let activityInstance = null
 
+const kpis = computed(() => {
+  const s = stats.value
+  return [
+    { label: '总用户数', value: s.totalUsers || 0, sub: `今日新增 ${s.todayUsers || 0}`, tone: 'blue', icon: User },
+    { label: '近 7 天活跃用户', value: s.activeUsers || 0, sub: `新建会话 ${s.weekSessions || 0} 个`, tone: 'green', icon: TrendCharts },
+    { label: '问答消息', value: s.totalMessages || 0, sub: `今日 ${s.todayMessages || 0} 条`, tone: 'cyan', icon: ChatDotRound },
+    { label: '知识库文章', value: s.totalArticles || 0, sub: `已发布 ${s.publishedArticles || 0} 篇`, tone: 'orange', icon: Document },
+    { label: '风险测评', value: s.totalAssessments || 0, sub: `投资日记 ${s.totalDiaries || 0} 篇`, tone: 'red', icon: DataAnalysis }
+  ]
+})
+
 const loadStats = async () => {
+  loading.value = true
   try {
-    const res = await axios.get('/api/admin/dashboard/stats')
-    stats.value = res.data
+    stats.value = (await getDashboardStats()) || {}
+    updatedAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
     await nextTick()
     renderCharts()
   } catch (e) {
-    console.error(e)
+    ElMessage.error('看板数据加载失败')
+  } finally {
+    loading.value = false
   }
 }
+const TOOLTIP = {
+  backgroundColor: '#fff',
+  borderColor: '#e4e7ed',
+  borderWidth: 1,
+  padding: [8, 12],
+  textStyle: { color: '#1f2329', fontSize: 12 }
+}
+const AXIS_LABEL = { color: '#a8adb7', fontSize: 11 }
+const AXIS_LINE = { lineStyle: { color: '#e4e7ed' } }
 
+const valueAxis = () => ({
+  type: 'value',
+  minInterval: 1,
+  axisLine: AXIS_LINE,
+  axisLabel: AXIS_LABEL,
+  splitLine: { lineStyle: { color: '#f0f2f5' } }
+})
+
+// 横轴只留「月-日」，7 个完整日期会挤在一起看不清，完整日期留给 tooltip
+const dayAxis = (dates) => ({
+  type: 'category',
+  data: dates,
+  axisLine: AXIS_LINE,
+  axisTick: { show: false },
+  axisLabel: { ...AXIS_LABEL, formatter: (v) => String(v).slice(5) }
+})
+
+const areaFill = (rgb) => ({
+  color: {
+    type: 'linear',
+    x: 0, y: 0, x2: 0, y2: 1,
+    colorStops: [
+      { offset: 0, color: `rgba(${rgb}, 0.28)` },
+      { offset: 1, color: `rgba(${rgb}, 0.02)` }
+    ]
+  }
+})
+
+const lineSeries = (name, data, color, fillRgb) => ({
+  name,
+  type: 'line',
+  smooth: true,
+  symbolSize: 6,
+  data,
+  lineStyle: { width: fillRgb ? 3 : 2, color },
+  itemStyle: { color },
+  ...(fillRgb ? { areaStyle: areaFill(fillRgb) } : {})
+})
 const renderCharts = () => {
   const s = stats.value
 
-  // 消息趋势
   if (trendChart.value) {
-    if (trendInstance) trendInstance.dispose()
+    trendInstance?.dispose()
     trendInstance = echarts.init(trendChart.value)
     const dates = Object.keys(s.messageTrend || {})
     trendInstance.setOption({
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderColor: '#fab1a0',
-        borderWidth: 1,
-        textStyle: { color: '#2d3436' },
-      },
-      grid: { left: '3%', right: '4%', top: '10%', bottom: '3%', containLabel: true },
-      xAxis: {
-        type: 'category',
-        data: dates,
-        axisLine: { lineStyle: { color: '#b2bec3' } },
-        axisLabel: { color: '#636e72' },
-      },
-      yAxis: {
-        type: 'value',
-        minInterval: 1,
-        axisLine: { lineStyle: { color: '#b2bec3' } },
-        axisLabel: { color: '#636e72' },
-        splitLine: { lineStyle: { color: 'rgba(180, 180, 180, 0.2)' } },
-      },
-      series: [{
-        type: 'line',
-        smooth: true,
-        data: dates.map((d) => s.messageTrend[d]),
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(102, 126, 234, 0.4)' },
-              { offset: 1, color: 'rgba(102, 126, 234, 0.1)' },
-            ],
-          },
-        },
-        lineStyle: { width: 3, color: '#667eea' },
-        itemStyle: { color: '#667eea' },
-      }],
+      tooltip: { trigger: 'axis', ...TOOLTIP },
+      grid: { left: 8, right: 16, top: 24, bottom: 4, containLabel: true },
+      xAxis: dayAxis(dates),
+      yAxis: valueAxis(),
+      series: [lineSeries('消息数', dates.map((d) => s.messageTrend[d]), BLUE, '64, 158, 255')]
     })
   }
 
-  // 测评等级分布
   if (levelChart.value) {
-    if (levelInstance) levelInstance.dispose()
+    levelInstance?.dispose()
     levelInstance = echarts.init(levelChart.value)
-    const levelMap = { 保守型: '#ffeaa7', 稳健型: '#74b9ff', 积极型: '#fd79a8' }
+    const levelColor = { 保守型: GREEN, 稳健型: BLUE, 积极型: ORANGE, 激进型: RED }
     const levelData = Object.entries(s.levelDist || {}).map(([name, value]) => ({
-      name,
-      value,
-      itemStyle: { color: levelMap[name] || '#a29bfe' },
+      name, value, itemStyle: { color: levelColor[name] || GREY }
     }))
     levelInstance.setOption({
-      tooltip: {
-        trigger: 'item',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderColor: '#fab1a0',
-        borderWidth: 1,
-        textStyle: { color: '#2d3436' },
-      },
-      legend: { bottom: 0, textStyle: { color: '#636e72' } },
+      tooltip: { trigger: 'item', ...TOOLTIP },
+      legend: { bottom: 0, icon: 'circle', itemWidth: 8, textStyle: { color: '#606266', fontSize: 12 } },
       series: [{
         type: 'pie',
-        radius: ['35%', '65%'],
-        center: ['50%', '45%'],
+        radius: ['42%', '68%'],
+        center: ['50%', '44%'],
         data: levelData,
-        label: { show: true, formatter: '{b}\n{c}', color: '#636e72' },
-        itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
-      }],
+        label: { formatter: '{b}\n{c} 份', color: '#606266', fontSize: 12 },
+        labelLine: { length: 8, length2: 8 },
+        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 }
+      }]
     })
   }
-
-  // 日记情绪分布
   if (sentimentChart.value) {
-    if (sentimentInstance) sentimentInstance.dispose()
+    sentimentInstance?.dispose()
     sentimentInstance = echarts.init(sentimentChart.value)
-    const sentimentMap = { 积极: '#00b894', 中性: '#a4b0be', 消极: '#d63031' }
+    const map = { 积极: GREEN, 中性: GREY, 消极: RED }
     const names = Object.keys(s.sentimentDist || {})
     sentimentInstance.setOption({
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderColor: '#fab1a0',
-        borderWidth: 1,
-        textStyle: { color: '#2d3436' },
-      },
-      grid: { left: '3%', right: '4%', top: '10%', bottom: '3%', containLabel: true },
-      xAxis: {
-        type: 'category',
-        data: names,
-        axisLine: { lineStyle: { color: '#b2bec3' } },
-        axisLabel: { color: '#636e72' },
-      },
-      yAxis: {
-        type: 'value',
-        minInterval: 1,
-        axisLine: { lineStyle: { color: '#b2bec3' } },
-        axisLabel: { color: '#636e72' },
-        splitLine: { lineStyle: { color: 'rgba(180, 180, 180, 0.2)' } },
-      },
+      tooltip: { trigger: 'axis', ...TOOLTIP },
+      grid: { left: 8, right: 16, top: 24, bottom: 4, containLabel: true },
+      xAxis: { type: 'category', data: names, axisLine: AXIS_LINE, axisTick: { show: false }, axisLabel: AXIS_LABEL },
+      yAxis: valueAxis(),
       series: [{
         type: 'bar',
-        barMaxWidth: 60,
+        barMaxWidth: 48,
         data: names.map((n) => ({
           value: s.sentimentDist[n],
-          itemStyle: {
-            color: sentimentMap[n] || '#a29bfe',
-            borderRadius: [8, 8, 0, 0],
-          },
-        })),
-      }],
+          itemStyle: { color: map[n] || GREY, borderRadius: [6, 6, 0, 0] }
+        }))
+      }]
     })
   }
 
-  // 用户活跃度趋势 - 增强版（4 条线）
   if (activityChart.value) {
-    if (activityInstance) activityInstance.dispose()
+    activityInstance?.dispose()
     activityInstance = echarts.init(activityChart.value)
-    const activityData = s.userActivity || {}
-    const dates = Object.keys(activityData)
-
-    // 构造 4 条数据系列
-    const activeUsersData = dates.map((d) => activityData[d]?.activeUsers || 0)
-    const sessionCountData = dates.map((d) => activityData[d]?.sessionCount || 0)
-
-    // 模拟新增用户和日记用户数据（实际项目中应从后端获取）
-    const newUserData = activeUsersData.map(v => Math.round(v * 0.3 + Math.random() * 5))
-    const diaryUserData = activeUsersData.map(v => Math.round(v * 0.4 + Math.random() * 3))
-
+    const activity = s.userActivity || {}
+    const dates = Object.keys(activity)
+    const pick = (key) => dates.map((d) => activity[d]?.[key] || 0)
     activityInstance.setOption({
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderColor: '#409eff',
-        borderWidth: 1,
-        textStyle: { color: '#2d3436' },
-      },
-      legend: {
-        data: ['活跃用户', '新增用户', '会话数量', '日记用户'],
-        top: 10,
-        textStyle: { color: '#636e72' },
-      },
-      grid: { left: '3%', right: '4%', top: '18%', bottom: '3%', containLabel: true },
-      xAxis: {
-        type: 'category',
-        data: dates,
-        axisLine: { lineStyle: { color: '#b2bec3' } },
-        axisLabel: { color: '#636e72' },
-      },
-      yAxis: {
-        type: 'value',
-        minInterval: 1,
-        axisLine: { lineStyle: { color: '#b2bec3' } },
-        axisLabel: { color: '#636e72' },
-        splitLine: { lineStyle: { color: 'rgba(180, 180, 180, 0.2)' } },
-      },
+      tooltip: { trigger: 'axis', ...TOOLTIP, axisPointer: { type: 'shadow' } },
+      legend: { top: 0, icon: 'circle', itemWidth: 8, textStyle: { color: '#606266', fontSize: 12 } },
+      grid: { left: 8, right: 16, top: 44, bottom: 4, containLabel: true },
+      xAxis: dayAxis(dates),
+      yAxis: valueAxis(),
       series: [
         {
-          name: '活跃用户',
-          type: 'line',
-          smooth: true,
-          data: activeUsersData,
-          lineStyle: { width: 3, color: '#409eff' },
-          itemStyle: { color: '#409eff' },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0, y: 0, x2: 0, y2: 1,
-              colorStops: [
-                { offset: 0, color: 'rgba(64, 158, 255, 0.3)' },
-                { offset: 1, color: 'rgba(64, 158, 255, 0.05)' },
-              ],
-            },
-          },
-        },
-        {
-          name: '新增用户',
-          type: 'line',
-          smooth: true,
-          data: newUserData,
-          lineStyle: { width: 2, color: '#67c23a' },
-          itemStyle: { color: '#67c23a' },
-        },
-        {
-          name: '会话数量',
+          name: '新建会话',
           type: 'bar',
-          data: sessionCountData,
-          itemStyle: {
-            color: {
-              type: 'linear',
-              x: 0, y: 0, x2: 0, y2: 1,
-              colorStops: [
-                { offset: 0, color: '#e6a23c' },
-                { offset: 1, color: '#f0d5be' },
-              ],
-            },
-          },
-          barWidth: '20%',
+          barMaxWidth: 26,
+          data: pick('sessionCount'),
+          itemStyle: { color: 'rgba(64, 158, 255, 0.16)', borderRadius: [4, 4, 0, 0] }
         },
-        {
-          name: '日记用户',
-          type: 'line',
-          smooth: true,
-          data: diaryUserData,
-          lineStyle: { width: 2, color: '#f56c6c' },
-          itemStyle: { color: '#f56c6c' },
-        },
-      ],
+        lineSeries('活跃用户', pick('activeUsers'), BLUE, '64, 158, 255'),
+        lineSeries('新增用户', pick('newUsers'), GREEN),
+        lineSeries('写日记用户', pick('diaryUsers'), ORANGE)
+      ]
     })
   }
 }
-
 const handleResize = () => {
   trendInstance?.resize()
   levelInstance?.resize()
@@ -405,196 +280,227 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .dashboard-page {
-  padding: 4px;
+  max-width: 1180px;
+  margin: 0 auto;
 }
 
-.stat-cards {
-  margin-bottom: 20px;
-}
-
-.stat-card {
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 16px;
-  transition: transform 0.3s, box-shadow 0.3s;
+
+  .head-left {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+
+    h2 {
+      margin: 0;
+      font-size: 17px;
+      color: #1f2329;
+    }
+
+    .head-note {
+      font-size: 12.5px;
+      color: #a8adb7;
+    }
+  }
+}
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
-.stat-card:hover {
-  transform: translateY(-4px);
-}
-
-.card-content {
+.kpi {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.icon-box {
-  width: 56px;
-  height: 56px;
+  padding: 16px 16px 15px;
+  background: #fff;
   border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  box-shadow: 0 2px 12px rgba(31, 45, 61, 0.06);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(31, 45, 61, 0.1);
+  }
+
+  .kpi-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: #fff;
+    flex-shrink: 0;
+
+    &.blue { background: linear-gradient(135deg, #409eff, #66b1ff); }
+    &.green { background: linear-gradient(135deg, #67c23a, #95d475); }
+    &.cyan { background: linear-gradient(135deg, #36cfc9, #5ad8d2); }
+    &.orange { background: linear-gradient(135deg, #e6a23c, #f0c078); }
+    &.red { background: linear-gradient(135deg, #f56c6c, #f89898); }
+  }
+
+  .kpi-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+}
+.kpi-label {
+  font-size: 12.5px;
+  color: #a8adb7;
 }
 
-.icon-box.users {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.kpi-value {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #1f2329;
 }
 
-.icon-box.messages {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-.icon-box.sessions {
-  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-}
-
-.icon-box.articles {
-  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-}
-
-.icon-box.assessments {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-}
-
-.icon {
-  font-size: 26px;
-}
-
-.info {
-  flex: 1;
-}
-
-.info .label {
-  font-size: 13px;
-  color: #95a5a6;
-  margin-bottom: 4px;
-}
-
-.info .value {
-  font-size: 22px;
-  font-weight: 700;
-  color: #2d3436;
-  margin-bottom: 4px;
-}
-
-.info .sub {
+.kpi-sub {
   font-size: 12px;
-  color: #b2bec3;
+  color: #b7bcc6;
 }
 
-.charts-row {
-  margin-bottom: 20px;
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+
+  .wide {
+    grid-column: span 1;
+  }
 }
 
-.chart-card {
-  margin-bottom: 16px;
-}
+.panel {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(31, 45, 61, 0.06);
+  padding: 16px 18px 14px;
+  margin-bottom: 14px;
 
-.card-header {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2d3436;
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 6px;
+
+    h3 {
+      margin: 0;
+      font-size: 14.5px;
+      color: #1f2329;
+    }
+
+    span {
+      font-size: 12px;
+      color: #a8adb7;
+    }
+  }
+}
+.grid-2 {
+  &.uneven {
+    grid-template-columns: 1.35fr minmax(0, 1fr);
+  }
+
+  .panel {
+    margin-bottom: 0;
+  }
 }
 
 .chart-box {
-  height: 320px;
+  height: 300px;
+
+  &.tall {
+    height: 340px;
+  }
 }
 
 .user-compose {
-  height: 320px;
+  height: 300px;
   display: flex;
-  justify-content: space-around;
   align-items: center;
-  gap: 24px;
-}
+  gap: 18px;
 
-.user-block {
-  text-align: center;
-  flex: 1;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 12px;
-}
+  .user-block {
+    flex: 1;
+    text-align: center;
+    padding: 22px 16px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(64, 158, 255, 0.08), rgba(103, 194, 58, 0.04));
+    border: 1px solid rgba(64, 158, 255, 0.12);
 
-.user-num {
-  font-size: 32px;
-  font-weight: 700;
-  color: #667eea;
-  margin-bottom: 8px;
-}
+    b {
+      display: block;
+      font-size: 30px;
+      font-weight: 800;
+      color: #409eff;
+    }
 
-.user-label {
-  font-size: 14px;
-  color: #636e72;
-  margin-bottom: 12px;
+    span {
+      display: block;
+      margin: 6px 0 12px;
+      font-size: 13px;
+      color: #909399;
+    }
+  }
 }
-
 .user-bar {
+  display: block;
   height: 6px;
-  border-radius: 3px;
   max-width: 120px;
   margin: 0 auto;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 3px;
+
+  &.admin {
+    background: linear-gradient(90deg, #409eff, #79bbff);
+  }
+
+  &.normal {
+    background: linear-gradient(90deg, #67c23a, #b3e19d);
+  }
 }
 
-.user-bar.normal {
-  background: linear-gradient(90deg, #4facfe, #00f2fe);
-}
-
-.overview-stats {
-  padding: 16px 0;
-}
-
-.overview-item {
-  text-align: center;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  transition: transform 0.3s;
-}
-
-.overview-item:hover {
-  transform: translateY(-2px);
-}
-
-.overview-label {
-  font-size: 13px;
-  color: #95a5a6;
-  margin-bottom: 8px;
-}
-
-.overview-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #2d3436;
+@media (max-width: 1100px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
-  .icon-box {
-    width: 48px;
-    height: 48px;
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .icon {
-    font-size: 22px;
-  }
-
-  .info .value {
-    font-size: 18px;
+  .grid-2,
+  .grid-2.uneven {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .chart-box {
-    height: 260px;
+    height: 240px;
+
+    &.tall {
+      height: 280px;
+    }
   }
 
   .user-compose {
-    height: 260px;
-  }
-
-  .user-num {
-    font-size: 26px;
+    height: auto;
+    padding: 6px 0 10px;
   }
 }
 </style>
+

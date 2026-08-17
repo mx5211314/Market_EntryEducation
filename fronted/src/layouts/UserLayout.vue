@@ -69,7 +69,7 @@ const handleCommand = (command) => {
       sessionStorage.removeItem('role')
       sessionStorage.removeItem('userInfo')
       sessionStorage.removeItem('redirect')
-      router.push('/login')
+      router.push('/auth/login')
     })
   }
 }

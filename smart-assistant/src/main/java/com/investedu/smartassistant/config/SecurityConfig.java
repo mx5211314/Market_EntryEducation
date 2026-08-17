@@ -40,10 +40,13 @@ public class SecurityConfig {
                     return config;
                 }))
                 .authorizeHttpRequests(auth -> auth
+                        // 出异常时 Spring 会转发到 /error，这条不放开的话 500 会被当成未授权返回 403，前端会误判成登录过期
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/wechat/auth-url", "/api/wechat/callback").permitAll()
                         .requestMatchers("/api/oauth/github/login-url", "/api/oauth/github/callback").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/api/user/article/**").permitAll()
                         .requestMatchers("/api/chat/**").authenticated()
                         .requestMatchers("/api/user/**").authenticated()

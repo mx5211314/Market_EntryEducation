@@ -44,7 +44,7 @@
               <el-button size="large" plain @click="handleFirstSectionKnowledge">探索知识库</el-button>
             </div>
 
-            <div class="stats reveal" style="--d:.78s">
+            <div class="stats reveal" style="--d:.78s" v-if="!isLoggedIn">
               <div class="stat">
                 <b>{{ display(5) }}+</b>
                 <span>核心功能模块</span>
@@ -57,6 +57,32 @@
                 <b>24/7</b>
                 <span>智能助手在线</span>
               </div>
+            </div>
+
+            <!-- 登录后这块换成个人状态：营销数字对老用户没用，他要知道的是自己该做什么 -->
+            <div class="mine reveal" style="--d:.78s" v-else>
+              <div class="mine-row">
+                <div class="mine-item" @click="router.push('/assessment')">
+                  <b :class="{ warn: suitability.needsAssessment }">{{ suitLabel }}</b>
+                  <span>风险测评</span>
+                </div>
+                <div class="mine-item" @click="router.push('/diary')">
+                  <b>{{ mine.disciplineScore || 0 }}</b>
+                  <span>纪律分</span>
+                </div>
+                <div class="mine-item" @click="router.push('/diary')">
+                  <b :class="{ warn: mine.pendingCount > 0 }">{{ mine.pendingCount || 0 }}</b>
+                  <span>待对账</span>
+                </div>
+                <div class="mine-item" @click="router.push('/diary')">
+                  <b>{{ mine.weekTrades || 0 }}</b>
+                  <span>本周操作</span>
+                </div>
+              </div>
+              <p class="mine-next" @click="router.push(nextStep.path)">
+                下一步：{{ nextStep.text }}
+                <el-icon><ArrowRight /></el-icon>
+              </p>
             </div>
           </div>
 
@@ -207,11 +233,57 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowRight, TopRight } from '@element-plus/icons-vue'
+import { getDiaryStats } from '@/api/frontend'
+import { useSuitabilityStore } from '@/stores/suitability'
 
 const router = useRouter()
+const suitability = useSuitabilityStore()
+const isLoggedIn = ref(false)
+const mine = ref({ disciplineScore: 0, pendingCount: 0, total: 0, weekTrades: 0 })
+
+const suitLabel = computed(() => {
+  if (!suitability.exists) return '未测评'
+  if (suitability.expired) return '已过期'
+  return suitability.levelCode || suitability.level || '已完成'
+})
+
+// 只给一条建议，按紧急程度排：适当性 > 到期对账 > 纪律 > 日常记录
+const nextStep = computed(() => {
+  if (suitability.needsAssessment) {
+    return { text: suitability.expired ? '风险测评已过期，重新测一次' : '完成风险测评，才能开始模拟配置', path: '/assessment' }
+  }
+  if (mine.value.pendingCount > 0) {
+    return { text: `有 ${mine.value.pendingCount} 条日记到了回顾时间，回去对一下账`, path: '/diary' }
+  }
+  if (!mine.value.total) {
+    return { text: '记下第一条投资日记，把卖出条件先定下来', path: '/diary' }
+  }
+  if ((mine.value.disciplineScore || 0) < 60) {
+    return { text: '纪律分偏低，下单前先把卖出条件写清楚', path: '/diary' }
+  }
+  return { text: '去模拟引导调一份符合你等级的组合', path: '/simulation' }
+})
+
+// 首页是公开路由，未登录访客不该发这些请求；失败也只让个人卡片退回默认值
+const loadMine = async () => {
+  isLoggedIn.value = !!sessionStorage.getItem('token')
+  if (!isLoggedIn.value) return
+  suitability.load()
+  try {
+    const s = await getDiaryStats()
+    mine.value = {
+      disciplineScore: s?.disciplineScore || 0,
+      pendingCount: s?.pendingCount || 0,
+      total: s?.total || 0,
+      weekTrades: s?.weekTrades || 0
+    }
+  } catch (e) {
+    // 统计拿不到就保持默认，首页不因此报错
+  }
+}
 
 // ===== 跳转处理函数 =====
 const handleFirstSectionLogin = () => {
@@ -310,6 +382,7 @@ const onScroll = () => {
 }
 
 onMounted(async () => {
+  loadMine()
   // 数字滚动动画
   const start = performance.now()
   const duration = 1600
@@ -595,6 +668,64 @@ onBeforeUnmount(() => {
           font-size: 12px;
           letter-spacing: 1px;
           color: #999;
+        }
+      }
+    }
+
+    .mine {
+      margin-top: 32px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(64, 158, 255, 0.15);
+
+      .mine-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .mine-item {
+        padding: 12px 14px;
+        border-radius: 12px;
+        cursor: pointer;
+        background: linear-gradient(135deg, rgba(64, 158, 255, 0.08), rgba(103, 194, 58, 0.04));
+        border: 1px solid rgba(64, 158, 255, 0.12);
+        transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+
+        &:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 8px 20px rgba(64, 158, 255, 0.14);
+        }
+
+        b {
+          display: block;
+          font-size: 22px;
+          font-weight: 800;
+          color: #409eff;
+          margin-bottom: 4px;
+          white-space: nowrap;
+
+          &.warn {
+            color: #f56c6c;
+          }
+        }
+
+        span {
+          font-size: 12px;
+          color: #909399;
+        }
+      }
+
+      .mine-next {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 14px 0 0;
+        font-size: 13px;
+        color: #409eff;
+        cursor: pointer;
+
+        &:hover {
+          gap: 10px;
         }
       }
     }
@@ -1172,6 +1303,10 @@ onBeforeUnmount(() => {
       .stats {
         gap: 28px;
         flex-wrap: wrap;
+      }
+
+      .mine .mine-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 

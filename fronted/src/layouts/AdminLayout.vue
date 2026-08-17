@@ -102,7 +102,7 @@ const handleCommand = (command) => {
       sessionStorage.removeItem('nickname')
       sessionStorage.removeItem('role')
       sessionStorage.removeItem('userInfo')
-      router.push('/login')
+      router.push('/auth/login')
     })
   }
 }

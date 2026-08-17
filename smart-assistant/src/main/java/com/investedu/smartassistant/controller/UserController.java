@@ -1,16 +1,16 @@
 package com.investedu.smartassistant.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.investedu.smartassistant.entity.User;
 import com.investedu.smartassistant.service.UserService;
 import com.investedu.smartassistant.util.JwtUtil;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api")
 public class UserController {
 
     private final UserService userService;
@@ -22,7 +22,7 @@ public class UserController {
     }
 
     // 获取当前用户信息
-    @GetMapping("/profile")
+    @GetMapping("/user/profile")
     public Map<String, Object> getProfile(@RequestHeader("Authorization") String authHeader) {
         User user = getCurrentUser(authHeader);
         Map<String, Object> map = new HashMap<>();
@@ -40,7 +40,7 @@ public class UserController {
     }
 
     // 修改个人信息
-    @PutMapping("/profile")
+    @PutMapping("/user/profile")
     public Map<String, String> updateProfile(@RequestHeader("Authorization") String authHeader,
                                              @RequestBody Map<String, String> body) {
         User user = getCurrentUser(authHeader);
@@ -54,7 +54,7 @@ public class UserController {
         return Map.of("message", "修改成功");
     }
     // 修改密码
-    @PutMapping("/password")
+    @PutMapping("/user/password")
     public Map<String, String> updatePassword(@RequestHeader("Authorization") String authHeader,
                                               @RequestBody Map<String, String> body) {
         User user = getCurrentUser(authHeader);
@@ -65,40 +65,44 @@ public class UserController {
     }
 
     // ========== 管理员接口 ==========
-    // 获取所有用户（管理员）
-    @GetMapping("/list")
-    public List<User> listUsers(@RequestHeader("Authorization") String authHeader) {
+    // 路径挂在 /api/admin 下，SecurityConfig 的 hasRole("ADMIN") 才真正拦得住，
+    // 不再只靠方法里手写的 checkAdmin
+    @GetMapping("/admin/user/list")
+    public IPage<User> pageUsers(@RequestHeader("Authorization") String authHeader,
+                                 @RequestParam(defaultValue = "1") int pageNum,
+                                 @RequestParam(defaultValue = "10") int pageSize,
+                                 @RequestParam(required = false) String keyword,
+                                 @RequestParam(required = false) String role,
+                                 @RequestParam(required = false) Integer status) {
         checkAdmin(authHeader);
-        return userService.listAllUsers();
+        return userService.pageUsers(pageNum, Math.min(pageSize, 100), keyword, role, status);
     }
 
     // 修改用户角色（管理员）
-    @PutMapping("/{userId}/role")
+    @PutMapping("/admin/user/{userId}/role")
     public Map<String, String> updateRole(@RequestHeader("Authorization") String authHeader,
                                           @PathVariable Long userId,
                                           @RequestBody Map<String, String> body) {
-        checkAdmin(authHeader);
-        String role = body.get("role");
-        userService.updateUserRole(userId, role);
+        requireOther(authHeader, userId, "不能修改自己的角色");
+        userService.updateUserRole(userId, body.get("role"));
         return Map.of("message", "角色更新成功");
     }
 
     // 禁用/启用用户（管理员）
-    @PutMapping("/{userId}/status")
+    @PutMapping("/admin/user/{userId}/status")
     public Map<String, String> updateStatus(@RequestHeader("Authorization") String authHeader,
                                             @PathVariable Long userId,
                                             @RequestBody Map<String, Integer> body) {
-        checkAdmin(authHeader);
-        Integer status = body.get("status");
-        userService.updateUserStatus(userId, status);
+        requireOther(authHeader, userId, "不能禁用自己的账号");
+        userService.updateUserStatus(userId, body.get("status"));
         return Map.of("message", "状态更新成功");
     }
 
     // 删除用户（管理员）
-    @DeleteMapping("/{userId}")
+    @DeleteMapping("/admin/user/{userId}")
     public Map<String, String> deleteUser(@RequestHeader("Authorization") String authHeader,
                                           @PathVariable Long userId) {
-        checkAdmin(authHeader);
+        requireOther(authHeader, userId, "不能删除自己的账号");
         userService.deleteUser(userId);
         return Map.of("message", "删除成功");
     }
@@ -114,6 +118,17 @@ public class UserController {
         User user = getCurrentUser(authHeader);
         if (!"ADMIN".equals(user.getRole())) {
             throw new RuntimeException("无权限访问");
+        }
+    }
+
+    /** 管理员操作自己的账号会把自己锁在门外，一律在服务端挡掉，不能只靠前端隐藏按钮 */
+    private void requireOther(String authHeader, Long userId, String message) {
+        User current = getCurrentUser(authHeader);
+        if (!"ADMIN".equals(current.getRole())) {
+            throw new RuntimeException("无权限访问");
+        }
+        if (current.getId().equals(userId)) {
+            throw new RuntimeException(message);
         }
     }
 }

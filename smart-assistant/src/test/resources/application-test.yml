@@ -1,0 +1,11 @@
+app:
+  data-init:
+    enabled: false
+
+langchain4j:
+  open-ai:
+    chat-model:
+      api-key: test-key
+  dashscope:
+    embedding-model:
+      api-key: test-key

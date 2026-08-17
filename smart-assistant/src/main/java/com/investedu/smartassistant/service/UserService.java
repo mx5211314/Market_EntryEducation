@@ -1,6 +1,8 @@
 package com.investedu.smartassistant.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.investedu.smartassistant.entity.User;
 import com.investedu.smartassistant.mapper.UserMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -8,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -127,18 +128,33 @@ public class UserService {
     }
 
     // ========== 管理员方法 ==========
-    public List<User> listAllUsers() {
-        return userMapper.selectList(new QueryWrapper<User>().orderByDesc("created_at"));
+    /** 管理端用户列表：关键词命中用户名/昵称/手机号，角色和状态可选筛选 */
+    public IPage<User> pageUsers(int pageNum, int pageSize, String keyword, String role, Integer status) {
+        QueryWrapper<User> wrapper = new QueryWrapper<>();
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim();
+            wrapper.and(w -> w.like("username", kw).or().like("nickname", kw).or().like("phone", kw));
+        }
+        if (StringUtils.hasText(role)) wrapper.eq("role", role);
+        if (status != null) wrapper.eq("status", status);
+        wrapper.orderByDesc("created_at");
+        return userMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
     }
 
     public void updateUserRole(Long userId, String role) {
+        if (!"ADMIN".equals(role) && !"USER".equals(role)) throw new RuntimeException("角色不合法");
         User user = userMapper.selectById(userId);
         if (user == null) throw new RuntimeException("用户不存在");
+        // 平台必须留人能进后台，降掉最后一个管理员就没人能改回来了
+        if ("ADMIN".equals(user.getRole()) && "USER".equals(role) && countAdmins() <= 1) {
+            throw new RuntimeException("至少要保留一个管理员");
+        }
         user.setRole(role);
         userMapper.updateById(user);
     }
 
     public void updateUserStatus(Long userId, Integer status) {
+        if (status == null || (status != 0 && status != 1)) throw new RuntimeException("状态不合法");
         User user = userMapper.selectById(userId);
         if (user == null) throw new RuntimeException("用户不存在");
         user.setStatus(status);
@@ -146,7 +162,16 @@ public class UserService {
     }
 
     public void deleteUser(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) throw new RuntimeException("用户不存在");
+        if ("ADMIN".equals(user.getRole()) && countAdmins() <= 1) {
+            throw new RuntimeException("至少要保留一个管理员");
+        }
         userMapper.deleteById(userId);
+    }
+
+    private long countAdmins() {
+        return userMapper.selectCount(new QueryWrapper<User>().eq("role", "ADMIN"));
     }
 //    wechat
     public User findOrCreateByOpenid(String openid) {

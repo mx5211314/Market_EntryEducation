@@ -15,3 +15,8 @@ export const register = (data) => {
         }
     }).then(res => res.data)
 }
+
+// GitHub 授权地址由后端拼，client_id 不下发到前端
+export const getGithubLoginUrl = () => {
+    return axios.get('/api/oauth/github/login-url').then(res => res.data)
+}

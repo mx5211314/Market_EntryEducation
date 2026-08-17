@@ -1,54 +1,54 @@
 <template>
   <div class="article-detail-container">
-    <!-- 头部区域 -->
-    <div class="header-section">
-      <div class="header-content">
+    <!-- 细头部：跟知识库列表页同一条白底导航条，不再用大渐变 banner -->
+    <div class="page-head">
+      <div class="head-inner">
         <div class="back-btn" @click="router.back()">
           <el-icon><ArrowLeft /></el-icon>
+          <span>返回</span>
         </div>
-        <div class="header-icon">📚</div>
-        <div class="header-text">
-          <h1>文章详情</h1>
-          <p>深入学习金融法规知识</p>
-        </div>
+        <span class="head-sep">/</span>
+        <span class="head-crumb" @click="router.push('/knowledge')">金融法规知识库</span>
+        <span class="head-sep" v-if="article.category">/</span>
+        <span class="head-current" v-if="article.category">{{ article.category }}</span>
       </div>
     </div>
 
     <div class="content" v-if="article.id">
       <!-- 文章信息卡片 -->
       <div class="article-card">
-        <div class="article-header">
-          <el-tag size="large" effect="plain">{{ article.category }}</el-tag>
-          <span class="publish-date">{{ formatDate(article.createdAt) }}</span>
+        <div class="cover-banner" v-if="article.coverImage">
+          <el-image :src="article.coverImage" fit="cover">
+            <template #error>
+              <div class="cover-fallback">封面加载失败</div>
+            </template>
+          </el-image>
         </div>
         <h1 class="article-title">{{ article.title }}</h1>
+        <div class="article-header">
+          <span class="publish-date">{{ formatDate(article.publishedAt || article.createdAt) }}</span>
+          <span class="dot">·</span>
+          <span>{{ article.author || '管理员' }}</span>
+          <span class="dot">·</span>
+          <span>{{ formatNumber(article.readCount || 0) }} 次阅读</span>
+          <template v-if="article.updatedAt">
+            <span class="dot">·</span>
+            <span>更新于 {{ formatUpdateTime(article.updatedAt) }}</span>
+          </template>
+        </div>
 
         <!-- 摘要 -->
         <div class="article-summary" v-if="article.summary">
           <el-icon><InfoFilled /></el-icon>
           <p>{{ article.summary }}</p>
         </div>
-
-        <!-- 作者和统计信息 -->
-        <div class="article-meta">
-          <div class="meta-item">
-            <el-icon><User /></el-icon>
-            <span>{{ article.author || '管理员' }}</span>
-          </div>
-          <div class="meta-item">
-            <el-icon><View /></el-icon>
-            <span>{{ formatNumber(article.readCount || 0) }} 次阅读</span>
-          </div>
-          <div class="meta-item" v-if="article.updatedAt">
-            <el-icon><Edit /></el-icon>
-            <span>更新于 {{ formatUpdateTime(article.updatedAt) }}</span>
-          </div>
-        </div>
       </div>
 
       <!-- 正文内容 -->
       <div class="article-card content-card">
-        <div class="content-wrapper" v-html="formatContent(article.content)"></div>
+        <!-- 后台用 wangEditor 存的是 HTML，SQL 里灌的种子文章是 Markdown，两种都要能渲染 -->
+        <div v-if="isHtmlContent" class="content-wrapper" v-html="safeContent"></div>
+        <MarkdownRenderer v-else class="content-wrapper" :content="article.content" />
       </div>
 
       <!-- 标签区域 -->
@@ -124,13 +124,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeRouteUpdate } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getKnowledgeDetail, getRecommendList } from '@/api/frontend';
 import {
-  ArrowLeft, User, View, Edit, Star, List, Share,
+  getKnowledgeDetail, getRecommendList,
+  checkFavorite, addFavorite, removeFavorite
+} from '@/api/frontend';
+import DOMPurify from 'dompurify'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
+import {
+  ArrowLeft, View, Star, List, Share,
   Loading, InfoFilled, PriceTag, TrendCharts
 } from '@element-plus/icons-vue'
 
@@ -140,6 +144,15 @@ const router = useRouter()
 const article = ref({})
 const favorited = ref(false)
 const recommendList = ref([])
+
+const isHtmlContent = computed(() => /<(p|div|h[1-6]|ul|ol|img|blockquote|pre)[\s>]/i.test(article.value.content || ''))
+
+// 正文是后台富文本编辑器存的原始 HTML，必须过一遍消毒再进 v-html，否则文章内容就是 XSS 入口。
+// 不禁用 style：wangEditor 的排版靠内联样式，DOMPurify 本身会清掉里面的危险声明
+const safeContent = computed(() => DOMPurify.sanitize(article.value.content || '', {
+  ADD_ATTR: ['target'],
+  FORBID_TAGS: ['form', 'input', 'button']
+}))
 
 // 跳转文章详情
 const goToArticle = (id) => {
@@ -157,20 +170,16 @@ const toggleFavorite = async () => {
     }
 
     if (favorited.value) {
-      await axios.delete(`/api/user/favorite/${route.params.id}`)
+      await removeFavorite(route.params.id)
       favorited.value = false
       ElMessage.success('已取消收藏')
     } else {
-      await axios.post(`/api/user/favorite/${route.params.id}`)
+      await addFavorite(route.params.id)
       favorited.value = true
       ElMessage.success('收藏成功')
     }
   } catch (e) {
-    if (e.response?.status === 401) {
-      ElMessage.error('请先登录');
-    } else {
-      ElMessage.error('操作失败');
-    }
+    // 拦截器已提示后端返回的原因
   }
 }
 
@@ -180,17 +189,13 @@ const loadArticle = async () => {
     article.value = res;
 
     // 检查收藏状态（需要登录）
-    const token = sessionStorage.getItem('token');
-    if (token) {
+    if (sessionStorage.getItem('token')) {
       try {
-        const checkRes = await axios.get(`/api/user/favorite/check/${route.params.id}`);
-        console.log('收藏状态检查:', checkRes.data);
-        favorited.value = checkRes.data.favorited || false;
+        const checkRes = await checkFavorite(route.params.id);
+        favorited.value = checkRes?.favorited || false;
       } catch (e) {
-        console.log('检查收藏状态失败（可能未登录或文章未收藏）');
+        favorited.value = false;
       }
-    } else {
-      console.log('未登录，跳过收藏状态检查');
     }
 
     // 加载相关文章（同一分类）
@@ -255,42 +260,6 @@ const formatNumber = (num) => {
   return num
 }
 
-// 格式化内容
-const formatContent = (content) => {
-  if (!content) return ''
-
-  let formatted = content
-
-  // 处理标题
-  formatted = formatted.replace(/^# (.*)$/gm, '<h1>$1</h1>')
-  formatted = formatted.replace(/^## (.*)$/gm, '<h2>$1</h2>')
-  formatted = formatted.replace(/^### (.*)$/gm, '<h3>$1</h3>')
-
-  // 处理加粗和斜体
-  formatted = formatted.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
-  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-  formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>')
-
-  // 处理引用
-  formatted = formatted.replace(/^> (.*)$/gm, '<blockquote>$1</blockquote>')
-
-  // 处理代码块
-  formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-  formatted = formatted.replace(/`(.*?)`/g, '<code>$1</code>')
-
-  // 处理列表
-  formatted = formatted.replace(/^\- (.*)$/gm, '<li>$1</li>')
-  formatted = formatted.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-
-  // 处理换行
-  formatted = formatted.replace(/\n/g, '<br>')
-
-  // 清理连续的 br 标签
-  formatted = formatted.replace(/(<br>){3,}/g, '<br><br>')
-
-  return formatted
-}
-
 onMounted(() => {
   console.log('文章详情页加载');
   console.log('当前参数:', route.params);
@@ -299,395 +268,441 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+/* 配色与首页、知识库列表页统一 */
+$brand: #409eff;
+$green: #67c23a;
+$orange: #e6a23c;
+$line: rgba(64, 158, 255, 0.15);
+
 .article-detail-container {
+  position: relative;
   min-height: calc(100vh - 60px);
-  background: linear-gradient(135deg, #fafbfc 0%, #f7f9fc 50%, #f2f6fa 100%);
-  padding-bottom: 40px;
+  background: #fff;
+  padding-bottom: 56px;
 
-  /* 头部区域 */
-  .header-section {
-    background: linear-gradient(135deg, #f59e0b 0%, #8b5cf6 100%);
-    padding: 32px 24px;
-    margin-bottom: 24px;
-    box-shadow: 0 8px 32px rgba(245, 158, 11, 0.15);
+  &::before {
+    content: '';
+    position: fixed;
+    inset: 60px 0 0;
+    background-image:
+      linear-gradient(rgba(64, 158, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(64, 158, 255, 0.05) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(ellipse 90% 80% at 50% 30%, #000 30%, transparent 80%);
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+/* 面包屑式细头部 */
+.article-detail-container .page-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  border-bottom: 1px solid $line;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  margin-bottom: 28px;
 
-    .header-content {
-      max-width: 980px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      gap: 16px;
+  .head-inner {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #999;
+  }
 
-      .back-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 44px;
-        height: 44px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.3s ease;
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: $brand;
+    cursor: pointer;
 
-        &:hover {
-          background: rgba(255, 255, 255, 0.3);
-        }
-      }
-
-      .header-icon {
-        font-size: 44px;
-        background: rgba(255, 255, 255, 0.2);
-        width: 60px;
-        height: 60px;
-        border-radius: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .header-text {
-        h1 {
-          font-size: 24px;
-          font-weight: 700;
-          color: white;
-          margin: 0;
-        }
-
-        p {
-          font-size: 14px;
-          color: rgba(255, 255, 255, 0.9);
-          margin: 4px 0 0 0;
-        }
-      }
+    &:hover {
+      opacity: 0.75;
     }
   }
 
-  /* 主体内容 */
-  .content {
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 0 24px;
+  .head-crumb {
+    color: #666;
+    cursor: pointer;
 
-    .article-card {
-      background: white;
-      border-radius: 16px;
-      padding: 28px 32px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-      margin-bottom: 20px;
+    &:hover {
+      color: $brand;
+    }
+  }
+
+  .head-current {
+    color: #333;
+  }
+
+  .head-sep {
+    color: #ddd;
+  }
+}
+/* 正文宽度收到 860，中文长行更好读 */
+.article-detail-container .content {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 24px;
+
+  .article-card {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(64, 158, 255, 0.12);
+    border-radius: 20px;
+    padding: 28px 32px;
+    box-shadow: 0 10px 30px rgba(64, 158, 255, 0.08);
+    margin-bottom: 20px;
+  }
+
+  /* 16:9 撑满正文宽度，服务端已经把封面统一裁成这个比例，这里不会再二次裁剪 */
+  .cover-banner {
+    aspect-ratio: 16 / 9;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 22px;
+    background: rgba(64, 158, 255, 0.06);
+
+    :deep(.el-image) {
+      width: 100%;
+      height: 100%;
     }
 
-    /* 文章头部 */
-    .article-header {
+    .cover-fallback {
+      width: 100%;
+      height: 100%;
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
+      justify-content: center;
+      font-size: 13px;
+      color: #bbb;
+    }
+  }
 
-      .publish-date {
-        font-size: 13px;
-        color: #9ca3af;
-      }
+  .article-title {
+    font-size: 30px;
+    font-weight: 800;
+    color: #333;
+    margin: 0 0 14px;
+    line-height: 1.35;
+  }
+
+  /* 作者、日期、阅读数串成一行灰字，不再各占一个图标块 */
+  .article-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 13px;
+    color: #999;
+
+    .dot {
+      color: #ddd;
+    }
+  }
+}
+.article-detail-container .content {
+  .article-summary {
+    background: rgba(103, 194, 58, 0.06);
+    border-left: 3px solid $green;
+    border-radius: 0 12px 12px 0;
+    padding: 14px 18px;
+    margin: 20px 0 0;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+
+    .el-icon {
+      color: $green;
+      font-size: 17px;
+      margin-top: 3px;
+      flex-shrink: 0;
     }
 
-    .article-title {
-      font-size: 32px;
-      font-weight: 700;
-      color: #111827;
-      margin: 0 0 20px 0;
+    p {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.8;
+    }
+  }
+
+  .tags-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    .tags-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #999;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .tags-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+  }
+}
+.article-detail-container .content-card {
+  padding: 32px 36px;
+
+  .content-wrapper {
+    font-size: 16px;
+    color: #444;
+    line-height: 1.9;
+
+    :deep(h1) {
+      font-size: 26px;
+      font-weight: 800;
+      color: #333;
+      margin: 32px 0 16px;
       line-height: 1.4;
     }
 
-    .article-summary {
-      background: linear-gradient(135deg, rgba(126, 211, 33, 0.08), rgba(126, 211, 33, 0.04));
-      border-left: 4px solid #7ed321;
-      border-radius: 0 12px 12px 0;
-      padding: 16px 20px;
-      margin-bottom: 24px;
+    :deep(h2) {
+      font-size: 22px;
+      font-weight: 700;
+      color: #333;
+      margin: 28px 0 14px;
+      padding-left: 12px;
+      border-left: 3px solid $brand;
+    }
+
+    :deep(h3) {
+      font-size: 18px;
+      font-weight: 700;
+      color: #333;
+      margin: 24px 0 12px;
+    }
+
+    :deep(p) {
+      margin: 0 0 18px;
+    }
+
+    :deep(strong) {
+      font-weight: 700;
+      color: #333;
+    }
+
+    :deep(img) {
+      max-width: 100%;
+      border-radius: 12px;
+      margin: 12px 0;
+    }
+  }
+}
+.article-detail-container .content-card .content-wrapper {
+  :deep(blockquote) {
+    border-left: 3px solid $brand;
+    background: rgba(64, 158, 255, 0.05);
+    padding: 14px 18px;
+    margin: 20px 0;
+    border-radius: 0 12px 12px 0;
+    color: #666;
+  }
+
+  :deep(pre) {
+    background: #2b303b;
+    color: #e6e9ef;
+    padding: 16px;
+    border-radius: 12px;
+    overflow-x: auto;
+    margin: 20px 0;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  :deep(code) {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+  }
+
+  :deep(.inline-code) {
+    background: rgba(64, 158, 255, 0.1);
+    padding: 2px 7px;
+    border-radius: 5px;
+    color: $brand;
+  }
+
+  :deep(ul),
+  :deep(ol) {
+    padding-left: 26px;
+    margin: 0 0 18px;
+
+    li {
+      margin-bottom: 8px;
+      line-height: 1.85;
+    }
+  }
+
+  :deep(a) {
+    color: $brand;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+.article-detail-container .content {
+  .action-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+
+    .el-button {
       display: flex;
-      gap: 12px;
-      align-items: flex-start;
+      align-items: center;
+      gap: 6px;
+      border-radius: 12px;
+      padding: 12px 22px;
+    }
+  }
+
+  .recommend-section {
+    margin-top: 36px;
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
 
       .el-icon {
-        color: #7ed321;
-        font-size: 18px;
-        margin-top: 2px;
-      }
-
-      p {
-        margin: 0;
-        font-size: 15px;
-        color: #374151;
-        line-height: 1.7;
+        color: $orange;
       }
     }
 
-    .article-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 24px;
-      padding-top: 20px;
-      border-top: 1px solid #f3f4f6;
-
-      .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
-        color: #6b7280;
-
-        .el-icon {
-          color: #9ca3af;
-        }
-      }
-    }
-
-    /* 内容区域 */
-    .content-card {
-      padding: 32px;
-
-      .content-wrapper {
-        font-size: 16px;
-        color: #374151;
-        line-height: 1.8;
-
-        :deep(h1) {
-          font-size: 28px;
-          font-weight: 700;
-          color: #111827;
-          margin: 32px 0 16px;
-          line-height: 1.4;
-        }
-
-        :deep(h2) {
-          font-size: 24px;
-          font-weight: 600;
-          color: #1f2937;
-          margin: 28px 0 14px;
-          padding-bottom: 10px;
-          border-bottom: 2px solid #f3f4f6;
-        }
-
-        :deep(h3) {
-          font-size: 20px;
-          font-weight: 600;
-          color: #374151;
-          margin: 24px 0 12px;
-        }
-
-        :deep(p) {
-          margin-bottom: 18px;
-          text-align: justify;
-        }
-
-        :deep(strong) {
-          font-weight: 600;
-          color: #1f2937;
-        }
-
-        :deep(em) {
-          font-style: italic;
-        }
-
-        :deep(blockquote) {
-          border-left: 4px solid #f59e0b;
-          background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(245, 158, 11, 0.02));
-          padding: 16px 20px;
-          margin: 20px 0;
-          border-radius: 0 12px 12px 0;
-          color: #6b7280;
-          font-style: italic;
-        }
-
-        :deep(pre) {
-          background: #1f2937;
-          color: #f3f4f6;
-          padding: 16px;
-          border-radius: 12px;
-          overflow-x: auto;
-          margin: 20px 0;
-        }
-
-        :deep(code) {
-          font-family: 'Courier New', monospace;
-          font-size: 0.9em;
-        }
-
-        :deep(.inline-code) {
-          background: #f3f4f6;
-          padding: 2px 8px;
-          border-radius: 6px;
-          color: #e11d48;
-        }
-
-        :deep(ul),
-        :deep(ol) {
-          padding-left: 28px;
-          margin-bottom: 18px;
-
-          li {
-            margin-bottom: 10px;
-            line-height: 1.7;
-          }
-        }
-      }
-    }
-
-    /* 标签区域 */
-    .tags-card {
-      display: flex;
-      flex-direction: column;
+    .recommend-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
       gap: 16px;
+    }
+  }
+}
+.article-detail-container .recommend-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(64, 158, 255, 0.12);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.06);
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
+  display: flex;
+  flex-direction: column;
 
-      .tags-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: #374151;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
+  &:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 18px 40px rgba(64, 158, 255, 0.14);
 
-      .tags-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+    h4 {
+      color: $brand;
+    }
+  }
 
-        .tag-item {
-          cursor: pointer;
-          transition: all 0.2s ease;
+  .rec-cover {
+    aspect-ratio: 16 / 9;
+    background: rgba(64, 158, 255, 0.06);
 
-          &:hover {
-            transform: translateY(-2px);
-          }
-        }
-      }
+    :deep(.el-image) {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .rec-info {
+    flex: 1;
+    padding: 14px 16px;
+
+    h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #333;
+      margin: 0 0 10px;
+      line-height: 1.5;
+      transition: color 0.25s ease;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
-    /* 操作按钮 */
-    .action-buttons {
+    .rec-meta {
       display: flex;
-      gap: 12px;
-      margin-top: 24px;
-      flex-wrap: wrap;
-
-      .el-button {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        border-radius: 12px;
-        padding: 12px 24px;
-      }
-    }
-
-    /* 推荐阅读 */
-    .recommend-section {
-      margin-top: 32px;
-
-      .section-title {
-        font-size: 18px;
-        font-weight: 600;
-        color: #374151;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .recommend-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-
-        .recommend-card {
-          background: white;
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          flex-direction: column;
-
-          &:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-          }
-
-          .rec-cover {
-            height: 120px;
-            background: linear-gradient(135deg, #fef3c7, #fce7f3);
-
-            :deep(.el-image) {
-              width: 100%;
-              height: 100%;
-            }
-          }
-
-          .rec-info {
-            flex: 1;
-            padding: 16px;
-
-            h4 {
-              font-size: 15px;
-              font-weight: 600;
-              color: #1f2937;
-              margin: 0 0 12px 0;
-              line-height: 1.4;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              display: -webkit-box;
-              -webkit-line-clamp: 2;
-              -webkit-box-orient: vertical;
-            }
-
-            .rec-meta {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-
-              .read-count {
-                font-size: 12px;
-                color: #9ca3af;
-                display: flex;
-                align-items: center;
-                gap: 4px;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    /* 加载状态 */
-    .loading-state {
-      display: flex;
-      flex-direction: column;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
-      padding: 80px 20px;
-      color: #9ca3af;
 
-      .is-loading {
-        animation: rotating 2s infinite;
-        color: #f59e0b;
-        margin-bottom: 16px;
+      .read-count {
+        font-size: 12px;
+        color: #999;
+        display: flex;
+        align-items: center;
+        gap: 4px;
       }
     }
+  }
+}
+.article-detail-container .loading-state {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px;
+  color: #999;
+
+  .is-loading {
+    animation: rotating 1.4s linear infinite;
+    color: $brand;
+    margin-bottom: 14px;
   }
 }
 
 @keyframes rotating {
-  from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-/* 响应式 */
 @media (max-width: 768px) {
-  .content {
-    padding: 0 16px;
+  .article-detail-container {
+    .page-head .head-inner {
+      padding: 12px 16px;
+    }
 
-    .article-card {
-      padding: 20px;
+    .content {
+      padding: 0 16px;
+
+      .article-card {
+        padding: 20px;
+      }
+
+      .article-title {
+        font-size: 23px;
+      }
+
+      .recommend-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .action-buttons .el-button {
+        flex: 1;
+        justify-content: center;
+      }
     }
 
     .content-card {
@@ -696,38 +711,9 @@ onMounted(() => {
       .content-wrapper {
         font-size: 15px;
 
-        :deep(h1) { font-size: 22px; }
-        :deep(h2) { font-size: 20px; }
-        :deep(h3) { font-size: 18px; }
-      }
-    }
-
-    .article-title {
-      font-size: 24px;
-    }
-
-    .recommend-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .action-buttons {
-      .el-button {
-        flex: 1;
-        justify-content: center;
-      }
-    }
-  }
-
-  .header-section {
-    .header-content {
-      .header-icon {
-        width: 50px;
-        height: 50px;
-        font-size: 36px;
-      }
-
-      .header-text h1 {
-        font-size: 20px;
+        :deep(h1) { font-size: 21px; }
+        :deep(h2) { font-size: 19px; }
+        :deep(h3) { font-size: 17px; }
       }
     }
   }

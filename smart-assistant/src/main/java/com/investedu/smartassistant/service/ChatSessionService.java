@@ -39,6 +39,17 @@ public class ChatSessionService {
         }
     }
 
+    public boolean renameSession(Long userId, String sessionId, String title) {
+        ChatSession session = sessionMapper.findByUserIdAndSessionId(userId, sessionId);
+        if (session == null) return false;
+        String trimmed = title == null ? "" : title.trim();
+        if (trimmed.isEmpty()) return false;
+        session.setTitle(trimmed.length() > 50 ? trimmed.substring(0, 50) : trimmed);
+        session.setUpdatedAt(LocalDateTime.now());
+        sessionMapper.updateById(session);
+        return true;
+    }
+
     public void touchSession(Long userId, String sessionId) {
         ChatSession session = sessionMapper.findByUserIdAndSessionId(userId, sessionId);
         if (session != null) {
