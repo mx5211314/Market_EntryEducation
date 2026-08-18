@@ -2,6 +2,7 @@ package com.investedu.smartassistant.controller;
 
 import com.investedu.smartassistant.entity.User;
 import com.investedu.smartassistant.service.UserService;
+import com.investedu.smartassistant.util.AuthContext;
 import com.investedu.smartassistant.util.JwtUtil;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,10 +15,12 @@ public class AuthController {
 
     private final UserService userService;
     private final JwtUtil jwtUtil;
+    private final AuthContext authContext;
 
-    public AuthController(UserService userService, JwtUtil jwtUtil) {
+    public AuthController(UserService userService, JwtUtil jwtUtil, AuthContext authContext) {
         this.userService = userService;
         this.jwtUtil = jwtUtil;
+        this.authContext = authContext;
     }
 
     @PostMapping("/register")
@@ -44,16 +47,21 @@ public class AuthController {
         response.put("token", token);
         response.put("username", user.getUsername());
         response.put("nickname", user.getNickname());
+        response.put("avatar", user.getAvatar());
         response.put("role", user.getRole());
         return response;
     }
 
     @GetMapping("/me")
-    public Map<String, String> currentUser(@RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
-        String username = jwtUtil.getUsernameFromToken(token);
-        User user = userService.findByUsername(username);
-        return Map.of("username", user.getUsername(), "nickname", user.getNickname());
+    public Map<String, String> currentUser() {
+        User user = authContext.requireUser();
+        Map<String, String> res = new HashMap<>();
+        res.put("username", user.getUsername());
+        // Map.of 不接受 null value：GitHub 登录进来的账号 nickname 是空的，之前这里直接 NPE
+        res.put("nickname", user.getNickname() == null ? user.getUsername() : user.getNickname());
+        res.put("avatar", user.getAvatar());
+        res.put("role", user.getRole());
+        return res;
     }
 
 }

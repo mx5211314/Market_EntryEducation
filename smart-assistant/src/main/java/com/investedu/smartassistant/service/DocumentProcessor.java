@@ -37,7 +37,21 @@ public class DocumentProcessor {
         } else {
             text = new String(Files.readAllBytes(file.toPath()));
         }
+        return split(text, file.getName(), baseMetadata);
+    }
 
+    /**
+     * 切分内存中的文本，供后台文章入库使用。
+     * 文章正文可能是 wangEditor 的 HTML，标签必须先剥掉：否则切片里塞满 &lt;p&gt;、style 属性，
+     * 嵌入向量被噪声带偏，检索出来的片段也没法直接给用户看。
+     */
+    public List<TextSegment> splitText(String rawText, String source, Map<String, String> baseMetadata) {
+        String text = stripHtml(rawText);
+        if (text.isBlank()) return List.of();
+        return split(text, source, baseMetadata);
+    }
+
+    private List<TextSegment> split(String text, String source, Map<String, String> baseMetadata) {
         Document doc = Document.from(text, new dev.langchain4j.data.document.Metadata(baseMetadata));
         List<TextSegment> segments = splitter.split(doc);
 
@@ -62,7 +76,7 @@ public class DocumentProcessor {
             }
 
             // 来源文件
-            seg.metadata().put("source", file.getName());
+            seg.metadata().put("source", source);
 
             // 继承基础元数据
             for (Map.Entry<String, String> entry : baseMetadata.entrySet()) {
@@ -70,5 +84,19 @@ public class DocumentProcessor {
             }
         }
         return segments;
+    }
+
+    private String stripHtml(String raw) {
+        if (raw == null) return "";
+        return raw.replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " ")
+                // 块级标签换成换行，段落切分器靠空行判断边界
+                .replaceAll("(?i)</(p|div|h[1-6]|li|tr|blockquote|pre)\\s*>", "\n\n")
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?s)<[^>]+>", " ")
+                .replace("&nbsp;", " ").replace("&amp;", "&")
+                .replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
+                .replaceAll("[ \\t]+", " ")
+                .replaceAll("\\n{3,}", "\n\n")
+                .trim();
     }
 }

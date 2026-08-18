@@ -22,7 +22,8 @@ public class User {
     private Integer age;
     private String signature;
     private Integer status;
-    // private String avatar;  // 暂时注释，数据库列待添加
+    /** 头像地址，/api/upload 返回的 URL */
+    private String avatar;
     private String phone;
     private String openid;
     private Long githubId;

@@ -32,6 +32,15 @@ public class ChatSessionService {
         return sessionMapper.listByUserId(userId);
     }
 
+    /** 会话必须属于当前用户，否则拿着别人的 sessionId 就能读到别人的聊天记录 */
+    public ChatSession requireOwned(Long userId, String sessionId) {
+        ChatSession session = sessionMapper.findByUserIdAndSessionId(userId, sessionId);
+        if (session == null) {
+            throw new RuntimeException("会话不存在");
+        }
+        return session;
+    }
+
     public void deleteSession(Long userId, String sessionId) {
         ChatSession session = sessionMapper.findByUserIdAndSessionId(userId, sessionId);
         if (session != null) {

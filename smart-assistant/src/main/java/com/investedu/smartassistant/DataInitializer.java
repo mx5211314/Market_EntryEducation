@@ -34,8 +34,14 @@ public class DataInitializer implements CommandLineRunner {
             for (Resource res : resources) {
                 try {
                     File file = res.getFile();
+                    // 灌过就跳过：这里每次启动都会重跑，无条件重灌会让向量库里攒下 N 份重复片段，
+                    // 检索 top4 可能全是同一段的副本
+                    if (vectorStoreService.hasIngested(VectorStoreService.REF_DOC, file.getName())) {
+                        System.out.println("已存在向量，跳过: " + file.getName());
+                        continue;
+                    }
                     var segments = documentProcessor.loadAndSplit(file, Map.of("category", "finance_rules"));
-                    vectorStoreService.ingest(segments);
+                    vectorStoreService.ingestFor(VectorStoreService.REF_DOC, file.getName(), segments);
                     System.out.println("已向量化入库: " + file.getName());
                 } catch (Exception ex) {
                     // 单个文档入库失败不阻断应用启动（如 DashScope 免费额度用尽、向量库不可用等）

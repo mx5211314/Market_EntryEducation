@@ -26,9 +26,11 @@ public class ArticleService {
     );
 
     private final ArticleMapper articleMapper;
+    private final ArticleIndexService articleIndexService;
 
-    public ArticleService(ArticleMapper articleMapper) {
+    public ArticleService(ArticleMapper articleMapper, ArticleIndexService articleIndexService) {
         this.articleMapper = articleMapper;
+        this.articleIndexService = articleIndexService;
     }
 
     public Article createArticle(Article body) {
@@ -60,6 +62,8 @@ public class ArticleService {
         if (body.getAuthor() != null) article.setAuthor(body.getAuthor());
         article.setUpdatedAt(LocalDateTime.now());
         articleMapper.updateById(article);
+        // 正文改了向量也得跟着改，否则 AI 还在引用旧内容
+        articleIndexService.sync(article);
         return article;
     }
 
@@ -73,10 +77,13 @@ public class ArticleService {
         }
         article.setUpdatedAt(LocalDateTime.now());
         articleMapper.updateById(article);
+        // 发布则建索引，下架则删索引：下架的文章不该再被 AI 引用
+        articleIndexService.sync(article);
     }
 
     public void deleteArticle(Long id) {
         articleMapper.deleteById(id);
+        articleIndexService.remove(id);
     }
 
     // 用户端查询：只显示已发布的文章，支持分类、关键词、排序
@@ -114,6 +121,11 @@ public class ArticleService {
 
     public Article getById(Long id) {
         return articleMapper.selectById(id);
+    }
+
+    // 学习进度的分母：只算已发布，草稿和下架的不该拉低进度
+    public long countPublished() {
+        return articleMapper.selectCount(new QueryWrapper<Article>().eq("status", 1));
     }
 
     // 收藏列表要一次性补上本页文章的标题分类，逐条 selectById 会打出一页条数的查询

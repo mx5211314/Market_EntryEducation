@@ -15,5 +15,7 @@ public class ChatMessage {
     private Long userId;
     private String role;
     private String content;
+    /** 助手消息引用的知识库来源，JSON 数组；用户消息为空。刷新页面后来源还能显示 */
+    private String sources;
     private LocalDateTime createdAt;
 }

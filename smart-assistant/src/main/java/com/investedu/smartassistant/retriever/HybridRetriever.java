@@ -1,5 +1,6 @@
 package com.investedu.smartassistant.retriever;
 
+import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -67,7 +68,7 @@ public class HybridRetriever {
         }
 
         // 4. 本地 Embedding 重排序
-        return rerankByEmbedding(query, combined, maxResults);
+        return rerankByEmbedding(queryEmbedding, combined, maxResults);
     }
 
     private List<TextSegment> esKeywordSearch(String query, int size) {
@@ -87,7 +88,9 @@ public class HybridRetriever {
                         Map<String, Object> source = (Map<String, Object>) h.get("_source");
                         if (source == null) return null;
                         String text = (String) source.get("text");
-                        return text != null ? TextSegment.from(text) : null;
+                        if (text == null) return null;
+                        // metadata 必须一起带出来：丢了它答案就没法标注来源、也没法跳回原文
+                        return TextSegment.from(text, toMetadata(source.get("metadata")));
                     })
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
@@ -97,9 +100,18 @@ public class HybridRetriever {
         }
     }
 
-    private List<TextSegment> rerankByEmbedding(String query, List<TextSegment> candidates, int topN) {
+    private Metadata toMetadata(Object raw) {
+        if (!(raw instanceof Map<?, ?> map)) return new Metadata();
+        Map<String, String> flat = new HashMap<>();
+        map.forEach((k, v) -> {
+            if (k != null && v != null) flat.put(String.valueOf(k), String.valueOf(v));
+        });
+        return new Metadata(flat);
+    }
+
+    // 查询向量由调用方传入：这里再 embed 一次等于对同一句话多花一次嵌入调用
+    private List<TextSegment> rerankByEmbedding(Embedding queryEmbedding, List<TextSegment> candidates, int topN) {
         if (candidates.isEmpty()) return candidates;
-        Embedding queryEmbedding = embeddingModel.embed(query).content();
         List<Embedding> candEmbeddings = embeddingModel.embedAll(candidates).content();
 
         List<AbstractMap.SimpleEntry<TextSegment, Double>> scored = new ArrayList<>();

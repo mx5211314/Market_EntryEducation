@@ -17,11 +17,16 @@ public class ChatMessageService {
     }
 
     public void saveMessage(String sessionId, Long userId, String role, String content) {
+        saveMessage(sessionId, userId, role, content, null);
+    }
+
+    public void saveMessage(String sessionId, Long userId, String role, String content, String sourcesJson) {
         ChatMessage message = new ChatMessage();
         message.setSessionId(sessionId);
         message.setUserId(userId);
         message.setRole(role);
         message.setContent(content);
+        message.setSources(sourcesJson);
         message.setCreatedAt(LocalDateTime.now());
         messageMapper.insert(message);
     }

@@ -2,10 +2,8 @@ package com.investedu.smartassistant.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.investedu.smartassistant.entity.RiskAssessment;
-import com.investedu.smartassistant.entity.User;
 import com.investedu.smartassistant.service.RiskAssessmentService;
-import com.investedu.smartassistant.service.UserService;
-import com.investedu.smartassistant.util.JwtUtil;
+import com.investedu.smartassistant.util.AuthContext;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -17,14 +15,11 @@ import java.util.Map;
 public class RiskAssessmentController {
 
     private final RiskAssessmentService assessmentService;
-    private final UserService userService;
-    private final JwtUtil jwtUtil;
+    private final AuthContext authContext;
 
-    public RiskAssessmentController(RiskAssessmentService assessmentService,
-                                    UserService userService, JwtUtil jwtUtil) {
+    public RiskAssessmentController(RiskAssessmentService assessmentService, AuthContext authContext) {
         this.assessmentService = assessmentService;
-        this.userService = userService;
-        this.jwtUtil = jwtUtil;
+        this.authContext = authContext;
     }
 
     @GetMapping("/questions")
@@ -33,9 +28,8 @@ public class RiskAssessmentController {
     }
 
     @PostMapping("/submit")
-    public Map<String, Object> submit(@RequestHeader("Authorization") String authHeader,
-                                      @RequestBody Map<String, Object> body) {
-        Long userId = getUserId(authHeader);
+    public Map<String, Object> submit(@RequestBody Map<String, Object> body) {
+        Long userId = authContext.requireUserId();
         // 适当性办法要求投资者签署风险揭示书后才能出具评估结果
         if (!Boolean.TRUE.equals(body.get("agreed"))) {
             throw new RuntimeException("请先阅读并确认《风险揭示书》");
@@ -52,25 +46,15 @@ public class RiskAssessmentController {
     }
 
     @GetMapping("/history")
-    public IPage<RiskAssessment> history(@RequestHeader("Authorization") String authHeader,
-                                         @RequestParam(defaultValue = "1") int pageNum,
+    public IPage<RiskAssessment> history(@RequestParam(defaultValue = "1") int pageNum,
                                          @RequestParam(defaultValue = "10") int pageSize) {
-        Long userId = getUserId(authHeader);
-        return assessmentService.getHistory(userId, pageNum, pageSize);
+        return assessmentService.getHistory(authContext.requireUserId(), pageNum, pageSize);
     }
 
     @GetMapping("/latest")
-    public Map<String, Object> latest(@RequestHeader("Authorization") String authHeader) {
-        Long userId = getUserId(authHeader);
-        RiskAssessment latest = assessmentService.getLatest(userId);
+    public Map<String, Object> latest() {
+        RiskAssessment latest = assessmentService.getLatest(authContext.requireUserId());
         if (latest == null) return Map.of("exists", false);
         return assessmentService.describeRecord(latest);
-    }
-
-    private Long getUserId(String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
-        String username = jwtUtil.getUsernameFromToken(token);
-        User user = userService.findByUsername(username);
-        return user.getId();
     }
 }

@@ -58,6 +58,8 @@ service.interceptors.response.use(
   (error) => {
     // 对响应错误做点什么
     const status = error.response?.status
+    // 后端全局异常处理会带上中文 message，优先展示它，而不是 "Request failed with status code 400"
+    const backendMsg = error.response?.data?.message
     if (status === 401) {
       ElMessage.error('登录过期，请重新登录')
       sessionStorage.removeItem('token')
@@ -75,7 +77,7 @@ service.interceptors.response.use(
       sessionStorage.removeItem('userInfo')
       window.location.href = '/auth/login'
     } else {
-      ElMessage.error(error.message || '网络错误')
+      ElMessage.error(backendMsg || error.message || '网络错误')
     }
     return Promise.reject(error)
   }

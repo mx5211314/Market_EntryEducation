@@ -12,8 +12,8 @@ import com.investedu.smartassistant.service.ChatSessionService;
 import com.investedu.smartassistant.service.QueryRewriter;
 import com.investedu.smartassistant.service.ResponseValidator;
 import com.investedu.smartassistant.service.RiskAssessmentService;
-import com.investedu.smartassistant.service.UserService;
-import com.investedu.smartassistant.util.JwtUtil;
+import com.investedu.smartassistant.service.AnswerSourceService;
+import com.investedu.smartassistant.util.AuthContext;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,13 +56,13 @@ public class ChatController {
     private ChatSessionService chatSessionService;
 
     @Autowired
-    private UserService userService;
-
-    @Autowired
-    private JwtUtil jwtUtil;
+    private AuthContext authContext;
 
     @Autowired
     private RiskAssessmentService riskAssessmentService;
+
+    @Autowired
+    private AnswerSourceService answerSourceService;
 
     @Value("${langchain4j.open-ai.chat-model.api-key}")
     private String apiKey;
@@ -87,16 +87,8 @@ public class ChatController {
      * 获取会话列表
      */
     @GetMapping("/chat")
-    public List<Map<String, Object>> getSessionList(@RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new RuntimeException("未登录");
-        }
-        String token = authHeader.substring(7);
-        String username = jwtUtil.getUsernameFromToken(token);
-        User user = userService.findByUsername(username);
-        if (user == null) {
-            throw new RuntimeException("用户不存在");
-        }
+    public List<Map<String, Object>> getSessionList() {
+        User user = authContext.requireUser();
 
         List<ChatSession> sessions = chatSessionService.listSessions(user.getId());
         return sessions.stream().map(session -> {
@@ -119,25 +111,14 @@ public class ChatController {
      * 同步问答接口（支持持久化会话）
      */
     @PostMapping("/chat")
-    public Map<String, String> chat(@RequestBody Map<String, String> request,
-                                    @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public Map<String, Object> chat(@RequestBody Map<String, String> request) {
         String sessionId = request.getOrDefault("sessionId", "");
         String userMessage = request.get("message");
         if (userMessage == null || userMessage.trim().isEmpty()) {
             return Map.of("reply", "您好，请问有什么可以帮您的？");
         }
 
-        // 获取当前用户
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new RuntimeException("未登录");
-        }
-        String token = authHeader.substring(7);
-        String username = jwtUtil.getUsernameFromToken(token);
-        User user = userService.findByUsername(username);
-        if (user == null) {
-            throw new RuntimeException("用户不存在");
-        }
-        Long userId = user.getId();
+        Long userId = authContext.requireUserId();
 
         // 创建或更新会话
         if (sessionId.isEmpty()) {
@@ -159,26 +140,27 @@ public class ChatController {
         String rewritten = queryRewriter.rewrite(userMessage);
         String riskProfile = riskProfilePrompt(userId);
         String reply;
+        List<Map<String, Object>> sources = List.of();
         if (QueryRewriter.isChat(rewritten)) {
             reply = chatWithHistory(history, userMessage, riskProfile);
         } else {
             List<TextSegment> relevant = hybridRetriever.retrieve(rewritten, 4);
             String context = relevant.stream().map(TextSegment::text).collect(Collectors.joining("\n\n"));
+            sources = answerSourceService.extract(relevant);
             reply = responseValidator.generateWithValidation(buildFinancePrompt(context, userMessage, history, riskProfile), 2);
         }
 
         // 保存助手消息
-        chatMessageService.saveMessage(sessionId, userId, "assistant", reply);
+        chatMessageService.saveMessage(sessionId, userId, "assistant", reply, toJson(sources));
 
-        return Map.of("reply", reply, "sessionId", sessionId);
+        return Map.of("reply", reply, "sessionId", sessionId, "sources", sources);
     }
 
     /**
      * 流式问答接口（SSE，支持持久化会话）
      */
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chatStream(@RequestBody Map<String, String> request,
-                                 @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public SseEmitter chatStream(@RequestBody Map<String, String> request) {
         SseEmitter emitter = new SseEmitter(0L);
         String sessionId = request.getOrDefault("sessionId", "");
         String userMessage = request.get("message");
@@ -187,19 +169,14 @@ public class ChatController {
             return emitter;
         }
 
-        // 获取当前用户
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            emitter.completeWithError(new RuntimeException("未登录"));
+        // SSE 里不能直接抛异常，前端拿不到原因，只会看到连接断开
+        Long userId;
+        try {
+            userId = authContext.requireUserId();
+        } catch (RuntimeException e) {
+            emitter.completeWithError(e);
             return emitter;
         }
-        String token = authHeader.substring(7);
-        String username = jwtUtil.getUsernameFromToken(token);
-        User user = userService.findByUsername(username);
-        if (user == null) {
-            emitter.completeWithError(new RuntimeException("用户不存在"));
-            return emitter;
-        }
-        Long userId = user.getId();
 
         // 创建或更新会话
         if (sessionId.isEmpty()) {
@@ -240,6 +217,12 @@ public class ChatController {
                 List<TextSegment> relevant = hybridRetriever.retrieve(rewritten, 4);
                 String context = relevant.stream().map(TextSegment::text).collect(Collectors.joining("\n\n"));
 
+                // 来源先推出去：正文可能要生成十几秒，等结束再发用户面对的是一段没有出处的文字
+                List<Map<String, Object>> sources = answerSourceService.extract(relevant);
+                String sourcesJson = toJson(sources);
+                if (!sources.isEmpty()) {
+                    emitter.send(SseEmitter.event().name("sources").data(sourcesJson));
+                }
                 List<Map<String, Object>> messages = new ArrayList<>();
                 messages.add(Map.of("role", "system", "content", SYSTEM_PROMPT + finalRiskProfile));
                 for (Map<String, String> msg : finalHistory) {
@@ -297,7 +280,7 @@ public class ChatController {
                         return null;
                     }
                     // 保存助手消息
-                    chatMessageService.saveMessage(finalSessionId, finalUserId, "assistant", fullReply.toString());
+                    chatMessageService.saveMessage(finalSessionId, finalUserId, "assistant", fullReply.toString(), sourcesJson);
                     emitter.complete();
                     return null;
                 });
@@ -323,6 +306,16 @@ public class ChatController {
     }
 
     // ==================== 私有辅助方法 ====================
+
+    /** 来源序列化失败不该影响回答，退化成没有来源即可 */
+    private String toJson(List<Map<String, Object>> sources) {
+        if (sources == null || sources.isEmpty()) return null;
+        try {
+            return objectMapper.writeValueAsString(sources);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     private void sendSingleSseEvent(SseEmitter emitter, String message) {
         try {

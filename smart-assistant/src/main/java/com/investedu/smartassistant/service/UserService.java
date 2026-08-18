@@ -101,7 +101,7 @@ public class UserService {
         if (gender != null) user.setGender(gender);
         if (age != null) user.setAge(age);
         if (signature != null) user.setSignature(signature);
-        // if (avatar != null) user.setAvatar(avatar);  // 暂时注释，数据库列待添加
+        if (avatar != null) user.setAvatar(avatar);
         if (phone != null) {
             if (!phone.isEmpty() && !PHONE_PATTERN.matcher(phone).matches()) {
                 throw new RuntimeException("手机号格式不正确");

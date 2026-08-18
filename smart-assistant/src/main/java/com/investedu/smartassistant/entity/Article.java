@@ -33,6 +33,10 @@ public class Article {
     @TableField(exist = false)
     private List<String> tagArray;
 
+    /** 当前用户是否读过。article.read_count 是所有人的总次数，答不了这个问题；未登录恒为 false */
+    @TableField(exist = false)
+    private Boolean readFlag;
+
     public List<String> getTagArray() {
         if (tags == null || tags.isBlank()) return Collections.emptyList();
         return Arrays.stream(tags.split(","))
